@@ -1,0 +1,122 @@
+name: nonstopcoding
+
+version: '3.8'
+
+x-logging:
+  &default-logging
+  logging:
+    driver: json-file
+    options:
+      max-size: 100M
+
+services:
+  db:
+    image: pgvector/pgvector:pg15
+    container_name: nonstopcoding_db
+    restart: always
+    ports:
+      - "5432:5432"
+    env_file:
+      - backend/.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nonstopcoding_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # RabbitMQ to manage asynchronous tasks and event queuing
+  rabbitmq:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile.rabbitmq
+    container_name: nonstopcoding_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  judge0-server:
+    image: judge0/judge0:1.13.1
+    container_name: judge0_server
+    profiles: ["judge0"] # <-- Gắn nhãn profile
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    ports:
+      - "2358:2358"
+    privileged: true
+    <<: *default-logging
+    restart: always
+
+  judge0-workers:
+    image: judge0/judge0:1.13.1
+    container_name: judge0_workers
+    profiles: ["judge0"] # <-- Gắn nhãn profile
+    command: ["./scripts/workers"]
+    volumes:
+      - ./judge0.conf:/judge0.conf:ro
+    privileged: true
+    <<: *default-logging
+    restart: always
+
+  judge0-db:
+    image: postgres:16.2
+    container_name: judge0_db
+    profiles: ["judge0"] # <-- Gắn nhãn profile
+    env_file: judge0.conf
+    volumes:
+      - judge0_postgres_data:/var/lib/postgresql/data/
+    <<: *default-logging
+    restart: always
+
+  judge0-redis:
+    image: redis:7.2.4
+    container_name: judge0_redis
+    profiles: ["judge0"] # <-- Gắn nhãn profile
+    command: [
+      "bash", "-c",
+      'docker-entrypoint.sh --appendonly no --requirepass "$$REDIS_PASSWORD"'
+    ]
+    env_file: judge0.conf
+    <<: *default-logging
+    restart: always
+
+  ffmpeg-service:
+    build:
+      context: ./ffmpeg-service
+      dockerfile: Dockerfile
+    container_name: nonstopcoding_ffmpeg
+    restart: always
+    ports:
+      - "9000:9000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+  redis_data:
+  judge0_postgres_data:

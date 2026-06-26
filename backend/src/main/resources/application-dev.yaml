@@ -1,0 +1,102 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /nonstopcoding
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/NonstopCoding}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:quang}
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      idle-timeout: 30000
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+    show-sql: true
+
+    properties:
+      hibernate:
+        '[default_batch_fetch_size]': 10
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 60s
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+
+jwt:
+  signer-key: ${JWT_SIGNER_KEY}
+  valid-duration: ${JWT_VALID_DURATION:86400}
+  refreshable-duration: ${JWT_REFRESHABLE_DURATION:604800}
+
+auth:
+  cookie:
+    access-token:
+      name: ${ACCESS_TOKEN_COOKIE_NAME:access_token}
+      max-age: ${ACCESS_TOKEN_MAX_AGE:86400}
+      secure: ${ACCESS_TOKEN_SECURE:false}
+      http-only: ${ACCESS_TOKEN_HTTP_ONLY:true}
+      same-site: ${ACCESS_TOKEN_SAME_SITE:Lax}
+      path: ${ACCESS_TOKEN_PATH:/}
+
+    refresh-token:
+      name: ${REFRESH_TOKEN_COOKIE_NAME:refresh_token}
+      max-age: ${REFRESH_TOKEN_MAX_AGE:604800}
+      secure: ${REFRESH_TOKEN_SECURE:false}
+      http-only: ${REFRESH_TOKEN_HTTP_ONLY:true}
+      same-site: ${REFRESH_TOKEN_SAME_SITE:Lax}
+      path: ${REFRESH_TOKEN_PATH:/nonstopcoding/auth}
+
+judge0:
+  base-url: ${JUDGE0_URL:http://localhost:2358}
+  timeout: 20s
+
+ffmpeg:
+  base-url: ${FFMPEG_SERVICE_URL:http://localhost:9000}
+
+websocket:
+  allowed-origins: http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173
+
+app:
+  webhook-base-url: ${WEBHOOK_BASE_URL:http://localhost:8080/nonstopcoding}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID}
+  api-key: ${PAYOS_API_KEY}
+  checksum-key: ${PAYOS_CHECKSUM_KEY}
+  return-url: ${PAYOS_RETURN_URL}
+  cancel-url: ${PAYOS_CANCEL_URL}
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID}
+
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+ai:
+  base-url: ${AI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout: ${AI_TIMEOUT:120s}
+  gemini-api-key: ${GEMINI_API_KEY}
+  gemini-model: ${GEMINI_MODEL:gemini-2.5-flash}
+  openai-api-key: ${OPENAI_API_KEY:}
+

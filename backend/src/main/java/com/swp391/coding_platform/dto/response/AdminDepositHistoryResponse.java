@@ -1,0 +1,17 @@
+package com.swp391.coding_platform.dto.response;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AdminDepositHistoryResponse {
+    private String id;
+    private String userName;
+    private long amount;
+    private String date; // ISO timestamp
+}
