@@ -3,9 +3,6 @@ package com.swp391.coding_platform;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
-import jakarta.annotation.PostConstruct;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
@@ -13,22 +10,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @SpringBootApplication
 public class CodingPlatformApplication {
-
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @PostConstruct
-    public void checkTables() {
-        try {
-            java.util.List<String> tables = jdbcTemplate.queryForList(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema='public'", String.class);
-            System.out.println("====== TABLES IN DB ======");
-            tables.forEach(System.out::println);
-            System.out.println("==========================");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
 	public static void main(String[] args) {
 		try {
@@ -49,10 +30,6 @@ public class CodingPlatformApplication {
 		} catch (Exception e) {
 			System.err.println("Failed to load .env file: " + e.getMessage());
 		}
-		System.out.println("DEBUG: System property DB_URL = " + System.getProperty("DB_URL"));
-		System.out.println("DEBUG: System property DB_USERNAME = " + System.getProperty("DB_USERNAME"));
-		System.out.println("DEBUG: System property DB_PASSWORD = " + System.getProperty("DB_PASSWORD"));
-		System.out.println("DEBUG: Env property DB_PASSWORD = " + System.getenv("DB_PASSWORD"));
 		SpringApplication.run(CodingPlatformApplication.class, args);
 	}
 }

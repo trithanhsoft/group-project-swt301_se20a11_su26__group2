@@ -7,6 +7,7 @@ import com.swp391.coding_platform.dto.judge0.Judge0TokenResponse;
 import com.swp391.coding_platform.dto.request.OjSubmissionRequest;
 import com.swp391.coding_platform.dto.response.OjSubmissionInitialResponse;
 import com.swp391.coding_platform.dto.response.OjWebSocketMessage;
+import com.swp391.coding_platform.entity.enums.ContestStatus;
 import com.swp391.coding_platform.entity.enums.OjVerdict;
 import com.swp391.coding_platform.entity.problem.ProblemEntity;
 import com.swp391.coding_platform.entity.problem.ProblemSubmissionDetailEntity;
@@ -77,7 +78,7 @@ public class Judge0Service {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
         user.validateStatus();
 
-        ProblemEntity ojProblem = problemRepository.findByIdAndIsPublicTrue(request.getProblemId())
+        ProblemEntity ojProblem = problemRepository.findByIdAndIsActiveTrueAndIsPublicTrue(request.getProblemId())
                 .orElseThrow(() -> new AppException(ErrorCode.OJ_PROBLEM_NOT_FOUND));
 
         if (request.getContestId() == null && request.getLessonId() == null) {
@@ -93,8 +94,8 @@ public class Judge0Service {
 
             // Tính toán contest status dựa trên thời gian thực
             Instant now = Instant.now();
-            boolean isOngoing = contest.getStatus() != com.swp391.coding_platform.entity.enums.ContestStatus.DRAFT
-                    && contest.getStatus() != com.swp391.coding_platform.entity.enums.ContestStatus.DELETED
+            boolean isOngoing = contest.getStatus() != ContestStatus.DRAFT
+                    && contest.getStatus() != ContestStatus.DELETED
                     && !now.isBefore(contest.getStartTime())
                     && !now.isAfter(contest.getEndTime());
 
@@ -127,7 +128,7 @@ public class Judge0Service {
 
         // Kiểm tra bài toán và lấy danh sách Testcases từ Database
         List<ProblemTestcaseEntity> problemTestcaseEntityList = problemTestcaseRepository
-                .findByProblemIdOrderByOrderIndex(request.getProblemId());
+                .findByProblemVersionIdOrderByOrderIndex(ojProblem.getCurrentVersion().getId());
         if (problemTestcaseEntityList.isEmpty()) {
             throw new AppException(ErrorCode.TESTCASE_NOT_FOUND);
         }
@@ -137,6 +138,7 @@ public class Judge0Service {
         ProblemSubmissionEntity onlineJudgeSubmissionEntity = ProblemSubmissionEntity.builder()
                 .user(userRepository.getReferenceById(userId))
                 .problem(problemRepository.getReferenceById(request.getProblemId()))
+                .problemVersion(ojProblem.getCurrentVersion())
                 .languageId(request.getLanguageId())
                 .sourceCode(request.getSourceCode())
                 .verdict(OjVerdict.PENDING)
@@ -150,7 +152,7 @@ public class Judge0Service {
         String callbackUrl = webhookBaseUrl + "/online-judge/submissions";
 
         // Tính limit dựa trên ngôn ngữ (Gợi ý dùng hệ số nhân)
-        double timeLimitSeconds = calculateTimeLimitForLanguage(ojProblem.getTimeLimitMs(), request.getLanguageId());
+        double timeLimitSeconds = calculateTimeLimitForLanguage(ojProblem.getCurrentVersion().getTimeLimitMs(), request.getLanguageId());
 
         for (ProblemTestcaseEntity testcase : problemTestcaseEntityList) {
             // Chuẩn hóa lại chuỗi \n bị gõ nhầm thành ký tự literal trong DB
@@ -166,7 +168,7 @@ public class Judge0Service {
                     .expectedOutput(cleanExpected)
                     .callbackUrl(callbackUrl)
                     .cpuTimeLimit(timeLimitSeconds)
-                    .memoryLimit(ojProblem.getMemoryLimitKb())
+                    .memoryLimit(ojProblem.getCurrentVersion().getMemoryLimitKb())
                     .build();
             judge0SubmissionItemList.add(item);
         }

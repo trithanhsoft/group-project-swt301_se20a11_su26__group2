@@ -749,7 +749,7 @@ export const Courses: React.FC = () => {
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              navigate('/dashboard');
+              navigate(`/dashboard#learning-view?courseId=${course.id}`);
             }}
             className="w-full py-2 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-lg transition-colors shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
           >

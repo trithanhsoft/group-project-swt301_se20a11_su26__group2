@@ -36,6 +36,15 @@ export const Login: React.FC = () => {
       className="min-h-screen flex items-center justify-center p-gutter md:p-margin-desktop text-text-main bg-[#f0f4f9] relative overflow-hidden"
       style={{ fontFamily: "'Inter', sans-serif" }}
     >
+      {/* Back to Home Button */}
+      <Link 
+        to="/" 
+        className="absolute top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-text-muted hover:text-primary transition-colors font-semibold z-20 bg-white/50 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm hover:shadow"
+      >
+        <span className="material-symbols-outlined text-[20px]">arrow_back</span>
+        Back to Home
+      </Link>
+
       {/* Glowing Backdrop Circles matching Layout.tsx */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]"></div>

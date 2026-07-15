@@ -12,6 +12,7 @@ public class ContestSubmissionResponse {
     Integer id;
     String submittedAt;
     String username;
+    String displayName;
     String problemLabel;
     Integer problemId;
     String problemTitle;

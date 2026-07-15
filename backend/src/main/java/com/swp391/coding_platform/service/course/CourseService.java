@@ -405,12 +405,12 @@ public class CourseService {
         List<com.swp391.coding_platform.dto.response.ProblemListItemResponse> problemResponses = lessonProblems.stream()
                 .map(lp -> {
                     var problem = lp.getProblem();
-                    String diff = problem.getDifficulty() != null 
-                            ? problem.getDifficulty().name().substring(0, 1).toUpperCase() + problem.getDifficulty().name().substring(1).toLowerCase()
+                    String diff = problem.getCurrentVersion().getDifficulty() != null 
+                            ? problem.getCurrentVersion().getDifficulty().name().substring(0, 1).toUpperCase() + problem.getCurrentVersion().getDifficulty().name().substring(1).toLowerCase()
                             : "Medium";
                     return com.swp391.coding_platform.dto.response.ProblemListItemResponse.builder()
                             .id(problem.getId())
-                            .title(problem.getTitle())
+                            .title(problem.getCurrentVersion().getTitle())
                             .difficulty(diff)
                             .score(problem.getScore() != null ? problem.getScore().intValue() : 0)
                             .totalSubmission(problem.getTotalSubmission() != null ? problem.getTotalSubmission() : 0)

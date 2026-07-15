@@ -3,6 +3,8 @@ package com.swp391.coding_platform.service.admin;
 import com.swp391.coding_platform.dto.response.AdminFinancialMonthlyRecordResponse;
 import com.swp391.coding_platform.dto.response.AdminFinancialTopCourseResponse;
 import com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse;
+import com.swp391.coding_platform.dto.response.PageResponse;
+import com.swp391.coding_platform.dto.response.AdminFinancialPayoutDetailsResponse;
 import com.swp391.coding_platform.entity.course.CourseEntity;
 import com.swp391.coding_platform.entity.enums.OrderStatus;
 import com.swp391.coding_platform.entity.enums.StatusTransaction;
@@ -11,10 +13,15 @@ import com.swp391.coding_platform.entity.payment.OrderEntity;
 import com.swp391.coding_platform.entity.payment.OrderItemEntity;
 import com.swp391.coding_platform.entity.payment.WalletTransactionEntity;
 import com.swp391.coding_platform.repository.payment.OrderItemRepository;
-import com.swp391.coding_platform.repository.payment.OrderRepository;
 import com.swp391.coding_platform.repository.payment.WalletTransactionRepository;
+import com.swp391.coding_platform.repository.payment.OrderRepository;
+import com.swp391.coding_platform.repository.payment.PayoutRequestRepository;
+import com.swp391.coding_platform.entity.payment.PayoutRequestEntity;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -36,6 +43,7 @@ public class AdminFinancialService {
     OrderRepository orderRepository;
     OrderItemRepository orderItemRepository;
     WalletTransactionRepository walletTransactionRepository;
+    PayoutRequestRepository payoutRequestRepository;
 
     @Transactional(readOnly = true)
     public List<AdminFinancialMonthlyRecordResponse> getMonthlyFinancialRecords() {
@@ -116,6 +124,7 @@ public class AdminFinancialService {
                     return new AdminFinancialTopCourseResponse(course.getTitle(), tutor, sold, gross, payout, plat);
                 })
                 .sorted((c1, c2) -> Long.compare(c2.getGross(), c1.getGross()))
+                .limit(20)
                 .collect(Collectors.toList());
 
         return topRevenueCourses;
@@ -124,18 +133,50 @@ public class AdminFinancialService {
     @Transactional(readOnly = true)
     public AdminFinancialDetailsResponse getFinancialDetails() {
         // Query completed orders with details to avoid N+1 queries
-        List<OrderEntity> completedOrders = orderRepository.findAllByStatusWithDetails(OrderStatus.COMPLETED).stream()
-                .sorted(Comparator.comparing(OrderEntity::getCreatedAt).reversed())
-                .collect(Collectors.toList());
+        List<OrderEntity> completedOrders = orderRepository.findAllByStatusWithDetails(OrderStatus.COMPLETED);
 
         // Query successful AWARD transactions
         List<WalletTransactionEntity> awards = walletTransactionRepository.findAll().stream()
                 .filter(t -> t.getType() == TransactionType.AWARD && t.getStatus() == StatusTransaction.SUCCESS)
-                .sorted(Comparator.comparing(WalletTransactionEntity::getCreatedAt).reversed())
                 .collect(Collectors.toList());
 
-        // 1. Order details list
-        List<AdminFinancialDetailsResponse.OrderDetails> orderDetailsList = completedOrders.stream().map(o -> {
+        // 4. Monthly breakdowns for all time
+        List<AdminFinancialDetailsResponse.MonthlyFinancialBreakdown> monthlyBreakdowns = 
+                getMonthlyFinancialBreakdownsAllTime(completedOrders, awards);
+
+        return AdminFinancialDetailsResponse.builder()
+                .orders(new ArrayList<>())
+                .awards(new ArrayList<>())
+                .sales(new ArrayList<>())
+                .monthlyBreakdowns(monthlyBreakdowns)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminFinancialDetailsResponse.OrderDetails> getOrdersPage(int page, int size, String startDate, String endDate) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        
+        Instant start = null;
+        Instant end = null;
+        try {
+            if (startDate != null && !startDate.isEmpty()) {
+                start = LocalDate.parse(startDate).atStartOfDay(ZoneId.systemDefault()).toInstant();
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                end = LocalDate.parse(endDate).plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().minusMillis(1);
+            }
+        } catch (Exception e) {
+            log.warn("Invalid date format: startDate={}, endDate={}", startDate, endDate);
+        }
+
+        Page<OrderEntity> orderPage;
+        if (start != null && end != null) {
+            orderPage = orderRepository.findByStatusAndCreatedAtBetweenOrderByCreatedAtDesc(OrderStatus.COMPLETED, start, end, pageable);
+        } else {
+            orderPage = orderRepository.findByStatusOrderByCreatedAtDesc(OrderStatus.COMPLETED, pageable);
+        }
+        
+        List<AdminFinancialDetailsResponse.OrderDetails> content = orderPage.getContent().stream().map(o -> {
             String customerName = o.getUser() != null ? o.getUser().getDisplayname() : "Unknown";
             String customerEmail = o.getUser() != null ? o.getUser().getEmail() : "Unknown";
             String courses = o.getOrderItems() != null ? o.getOrderItems().stream()
@@ -157,8 +198,42 @@ public class AdminFinancialService {
                     .build();
         }).collect(Collectors.toList());
 
-        // 2. Award details list
-        List<AdminFinancialDetailsResponse.AwardDetails> awardDetailsList = awards.stream().map(t -> {
+        PageResponse<AdminFinancialDetailsResponse.OrderDetails> response = new PageResponse<>();
+        response.setPage(orderPage.getNumber() + 1);
+        response.setSize(orderPage.getSize());
+        response.setTotalElements(orderPage.getTotalElements());
+        response.setTotalPages(orderPage.getTotalPages());
+        response.setContent(content);
+        return response;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminFinancialDetailsResponse.AwardDetails> getAwardsPage(int page, int size, String startDate, String endDate) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        
+        Instant start = null;
+        Instant end = null;
+        try {
+            if (startDate != null && !startDate.isEmpty()) {
+                start = LocalDate.parse(startDate).atStartOfDay(ZoneId.systemDefault()).toInstant();
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                end = LocalDate.parse(endDate).plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().minusMillis(1);
+            }
+        } catch (Exception e) {
+            log.warn("Invalid date format: startDate={}, endDate={}", startDate, endDate);
+        }
+
+        Page<WalletTransactionEntity> awardPage;
+        if (start != null && end != null) {
+            awardPage = walletTransactionRepository.findByTypeAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(
+                    TransactionType.AWARD, StatusTransaction.SUCCESS, start, end, pageable);
+        } else {
+            awardPage = walletTransactionRepository.findByTypeAndStatusOrderByCreatedAtDesc(
+                    TransactionType.AWARD, StatusTransaction.SUCCESS, pageable);
+        }
+
+        List<AdminFinancialDetailsResponse.AwardDetails> content = awardPage.getContent().stream().map(t -> {
             String userName = "Unknown";
             String userEmail = "Unknown";
             if (t.getWallet() != null && t.getWallet().getUser() != null) {
@@ -175,12 +250,40 @@ public class AdminFinancialService {
                     .build();
         }).collect(Collectors.toList());
 
-        // 3. Sale details list
-        List<OrderItemEntity> completedOrderItems = orderItemRepository.findAllCompletedOrderItemsWithDetails().stream()
-                .sorted(Comparator.comparing((OrderItemEntity item) -> item.getOrder().getCreatedAt()).reversed())
-                .collect(Collectors.toList());
+        PageResponse<AdminFinancialDetailsResponse.AwardDetails> response = new PageResponse<>();
+        response.setPage(awardPage.getNumber() + 1);
+        response.setSize(awardPage.getSize());
+        response.setTotalElements(awardPage.getTotalElements());
+        response.setTotalPages(awardPage.getTotalPages());
+        response.setContent(content);
+        return response;
+    }
 
-        List<AdminFinancialDetailsResponse.SaleDetails> saleDetailsList = completedOrderItems.stream().map(item -> {
+    @Transactional(readOnly = true)
+    public PageResponse<AdminFinancialDetailsResponse.SaleDetails> getSalesPage(int page, int size, String startDate, String endDate) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        
+        Instant start = null;
+        Instant end = null;
+        try {
+            if (startDate != null && !startDate.isEmpty()) {
+                start = LocalDate.parse(startDate).atStartOfDay(ZoneId.systemDefault()).toInstant();
+            }
+            if (endDate != null && !endDate.isEmpty()) {
+                end = LocalDate.parse(endDate).plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().minusMillis(1);
+            }
+        } catch (Exception e) {
+            log.warn("Invalid date format: startDate={}, endDate={}", startDate, endDate);
+        }
+
+        Page<OrderItemEntity> salesPage;
+        if (start != null && end != null) {
+            salesPage = orderItemRepository.findByOrderStatusAndOrderCreatedAtBetweenOrderByOrderCreatedAtDesc(OrderStatus.COMPLETED, start, end, pageable);
+        } else {
+            salesPage = orderItemRepository.findByOrderStatusOrderByOrderCreatedAtDesc(OrderStatus.COMPLETED, pageable);
+        }
+
+        List<AdminFinancialDetailsResponse.SaleDetails> content = salesPage.getContent().stream().map(item -> {
             String courseTitle = item.getCourse() != null ? item.getCourse().getTitle() : "Unknown Course";
             String instructorName = (item.getCourse() != null && item.getCourse().getInstructor() != null) ? 
                     item.getCourse().getInstructor().getFullName() : "Unknown Instructor";
@@ -197,16 +300,13 @@ public class AdminFinancialService {
                     .build();
         }).collect(Collectors.toList());
 
-        // 4. Monthly breakdowns for all time
-        List<AdminFinancialDetailsResponse.MonthlyFinancialBreakdown> monthlyBreakdowns = 
-                getMonthlyFinancialBreakdownsAllTime(completedOrders, awards);
-
-        return AdminFinancialDetailsResponse.builder()
-                .orders(orderDetailsList)
-                .awards(awardDetailsList)
-                .sales(saleDetailsList)
-                .monthlyBreakdowns(monthlyBreakdowns)
-                .build();
+        PageResponse<AdminFinancialDetailsResponse.SaleDetails> response = new PageResponse<>();
+        response.setPage(salesPage.getNumber() + 1);
+        response.setSize(salesPage.getSize());
+        response.setTotalElements(salesPage.getTotalElements());
+        response.setTotalPages(salesPage.getTotalPages());
+        response.setContent(content);
+        return response;
     }
 
     private List<AdminFinancialDetailsResponse.MonthlyFinancialBreakdown> getMonthlyFinancialBreakdownsAllTime(
@@ -279,5 +379,36 @@ public class AdminFinancialService {
         }
 
         return records;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<AdminFinancialPayoutDetailsResponse> getPayoutsPage(int page, int limit, String startDate, String endDate) {
+        Pageable pageable = PageRequest.of(page - 1, limit);
+        Page<PayoutRequestEntity> payoutPage = payoutRequestRepository.findAll(pageable);
+        
+        List<AdminFinancialPayoutDetailsResponse> payoutDetails = payoutPage.getContent().stream().map(p -> {
+            String instructorName = p.getWallet() != null && p.getWallet().getUser() != null ? p.getWallet().getUser().getDisplayname() : "Unknown";
+            String instructorEmail = p.getWallet() != null && p.getWallet().getUser() != null ? p.getWallet().getUser().getEmail() : "Unknown";
+            return AdminFinancialPayoutDetailsResponse.builder()
+                    .id("PO-" + p.getId())
+                    .instructorName(instructorName)
+                    .instructorEmail(instructorEmail)
+                    .amount(p.getAmount())
+                    .bankAccount(p.getBankAccountNumber() != null ? "****" + (p.getBankAccountNumber().length() >= 4 ? p.getBankAccountNumber().substring(p.getBankAccountNumber().length() - 4) : p.getBankAccountNumber()) : "N/A")
+                    .status(p.getStatus().name())
+                    .date(p.getCreatedAt() != null ? p.getCreatedAt() : Instant.now())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return PageResponse.<AdminFinancialPayoutDetailsResponse>builder()
+                .content(payoutDetails)
+                .page(payoutPage.getNumber() + 1)
+                .size(payoutPage.getSize())
+                .totalElements(payoutPage.getTotalElements())
+                .totalPages(payoutPage.getTotalPages())
+                .numberOfElements(payoutPage.getNumberOfElements())
+                .first(payoutPage.isFirst())
+                .last(payoutPage.isLast())
+                .build();
     }
 }

@@ -4,14 +4,19 @@ server:
     context-path: /nonstopcoding
 
 spring:
+  threads:
+    virtual:
+      enabled: true
+
   servlet:
     multipart:
       max-file-size: 500MB
       max-request-size: 500MB
+
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/NonstopCoding}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nonstopcoding}
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:quang}
+    password: ${DB_PASSWORD}
     hikari:
       maximum-pool-size: 30
       minimum-idle: 10
@@ -39,6 +44,14 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+
+  ai:
+    openai:
+      api-key: ${GEMINI_API_KEY}
+      base-url: https://generativelanguage.googleapis.com/v1beta/openai/
+      chat:
+        options:
+          model: gemini-2.5-flash
 
 
 jwt:
@@ -99,4 +112,6 @@ ai:
   gemini-api-key: ${GEMINI_API_KEY}
   gemini-model: ${GEMINI_MODEL:gemini-2.5-flash}
   openai-api-key: ${OPENAI_API_KEY:}
+  visualizer:
+    max-requests-per-day: 100
 

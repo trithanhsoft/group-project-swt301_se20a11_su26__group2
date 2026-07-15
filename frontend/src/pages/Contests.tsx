@@ -54,7 +54,7 @@ export const Contests: React.FC = () => {
       setIsLoading(true);
       try {
         const response = await fetch(
-          `http://localhost:8080/nonstopcoding/contests?search=${searchQuery}&status=${statusFilter}&access=${accessFilter}&page=${currentPage}&size=5`,
+          `http://localhost:8080/nonstopcoding/contests?search=${searchQuery}&status=${statusFilter}&access=${accessFilter}&page=${currentPage}&size=10`,
           {
             credentials: 'include',
           }

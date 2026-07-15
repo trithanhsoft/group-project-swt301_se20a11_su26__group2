@@ -62,4 +62,68 @@ public class AdminFinancialController {
                 .timestamp(Instant.now().toString())
                 .build());
     }
+
+    @GetMapping("/orders")
+    public ResponseEntity<ApiResponse<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.OrderDetails>>> getOrdersPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate) {
+        com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.OrderDetails> result = adminFinancialService.getOrdersPage(page, limit, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.OrderDetails>>builder()
+                .status(200)
+                .code(1000)
+                .message("Fetched orders successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+
+    @GetMapping("/awards")
+    public ResponseEntity<ApiResponse<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.AwardDetails>>> getAwardsPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate) {
+        com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.AwardDetails> result = adminFinancialService.getAwardsPage(page, limit, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.AwardDetails>>builder()
+                .status(200)
+                .code(1000)
+                .message("Fetched awards successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+
+    @GetMapping("/sales")
+    public ResponseEntity<ApiResponse<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.SaleDetails>>> getSalesPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate) {
+        com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.SaleDetails> result = adminFinancialService.getSalesPage(page, limit, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialDetailsResponse.SaleDetails>>builder()
+                .status(200)
+                .code(1000)
+                .message("Fetched sales successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+
+    @GetMapping("/payouts")
+    public ResponseEntity<ApiResponse<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialPayoutDetailsResponse>>> getPayoutsPage(
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "1") int page,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "10") int limit,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String startDate,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String endDate) {
+        com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialPayoutDetailsResponse> result = adminFinancialService.getPayoutsPage(page, limit, startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.<com.swp391.coding_platform.dto.response.PageResponse<com.swp391.coding_platform.dto.response.AdminFinancialPayoutDetailsResponse>>builder()
+                .status(200)
+                .code(1000)
+                .message("Fetched payouts successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
 }

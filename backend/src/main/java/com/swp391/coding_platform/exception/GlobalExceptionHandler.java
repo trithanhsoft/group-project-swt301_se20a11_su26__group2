@@ -10,7 +10,9 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import java.time.Instant;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -71,6 +73,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = Exception.class)
     public ResponseEntity<ApiResponse<Object>> handlingException(Exception exception) {
+        log.error("Lỗi hệ thống: ", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Object>builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode())
@@ -82,6 +85,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(value = Throwable.class)
     public ResponseEntity<ApiResponse<Object>> handlingThrowable(Throwable throwable) {
+        log.error("Lỗi nghiêm trọng hệ thống: ", throwable);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.<Object>builder()
                 .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .code(ErrorCode.UNCATEGORIZED_EXCEPTION.getCode())

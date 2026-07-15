@@ -5,7 +5,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-@ActiveProfiles("dev")
+@ActiveProfiles("test")
+@org.springframework.context.annotation.Import(com.swp391.coding_platform.TestcontainersConfiguration.class)
 class CodingPlatformApplicationTests {
 
 	static {

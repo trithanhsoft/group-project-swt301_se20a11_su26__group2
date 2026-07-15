@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Network Delay Time (Dijkstra)</title>
+    <script src='https://cdn.tailwindcss.com'></script>
+    <style>
+        /* Custom styles for graph elements */
+        .node {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #e2e8f0; /* text-gray-200 */
+            background-color: #3b82f6; /* bg-blue-500 */
+            border: 2px solid #60a5fa; /* border-blue-400 */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+            cursor: grab;
+            z-index: 10;
+        }
+        .node.current {
+            background-color: #fbbf24; /* bg-amber-400 */
+            border-color: #fcd34d; /* border-amber-300 */
+            box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.5); /* ring-amber-400/50 */
+        }
+        .node.updated {
+            background-color: #f97316; /* bg-orange-500 */
+            border-color: #fb923c; /* border-orange-400 */
+        }
+        .node.visited {
+            background-color: #10b981; /* bg-emerald-500 */
+            border-color: #34d399; /* border-emerald-400 */
+        }
+        .node-id {
+            font-size: 1.1rem;
+            margin-bottom: 2px;
+        }
+        .node-dist {
+            font-size: 0.75rem;
+            color: #cbd5e1; /* text-gray-300 */
+        }
+
+        .edge-path {
+            stroke: #d1d5db; /* stroke-gray-300 for visibility */
+            stroke-width: 2;
+            fill: none;
+            transition: stroke 0.4s cubic-bezier(0.4,0,0.2,1);
+            z-index: 1;
+        }
+        .edge-path.active {
+            stroke: #f97316; /* stroke-orange-500 */
+        }
+        .edge-path.final {
+            stroke: #10b981; /* stroke-emerald-500 */
+        }
+        .edge-weight {
+            fill: #d1d5db; /* text-gray-300 for visibility */
+            font-size: 0.8rem;
+            font-weight: bold;
+            pointer-events: none;
+            transition: fill 0.4s cubic-bezier(0.4,0,0.2,1);
+            z-index: 2;
+        }
+        .edge-weight.active {
+            fill: #f97316; /* text-orange-500 */
+        }
+        .edge-weight.final {
+            fill: #10b981; /* text-emerald-500 */
+        }
+
+        /* Scrollbar styling for log panel */
+        #log::-webkit-scrollbar {
+            width: 8px;
+        }
+        #log::-webkit-scrollbar-track {
+            background: #1f2937; /* bg-gray-800 */
+            border-radius: 10px;
+        }
+        #log::-webkit-scrollbar-thumb {
+            background-color: #4b5563; /* bg-gray-600 */
+            border-radius: 10px;
+            border: 2px solid #1f2937;
+        }
+        #log::-webkit-scrollbar-thumb:hover {
+            background-color: #6b7280; /* bg-gray-500 */
+        }
+    </style>
+</head>
+<body class='h-screen w-screen overflow-hidden flex flex-row bg-gray-950 text-white font-sans'>
+
+<!-- Left Panel (Visualization) -->
+<div class='w-[70%] h-full flex flex-col relative'>
+    <!-- Top Bar -->
+    <div class='p-4 border-b border-gray-800 flex justify-between items-center bg-gray-900/50'>
+        <h2 class='text-2xl font-bold text-blue-300 flex items-center'>
+            <span class='mr-2'>📡</span> Network Delay Time (Dijkstra)
+        </h2>
+        <span id='step-counter' class='bg-blue-900/50 text-blue-300 px-3 py-1 rounded-full text-sm font-mono'>
+                Step: 0
+            </span>
+    </div>
+
+    <!-- Main Canvas -->
+    <div id='canvas' class='flex-1 flex items-center justify-center overflow-hidden w-full relative p-4'>
+        <div id='viz-wrapper' style='transform-origin: center center; display: inline-block; transition: transform 0.3s; position: relative;'>
+            <!-- Graph elements will be rendered here by JS -->
+        </div>
+    </div>
+
+    <!-- Bottom Bar - Color Legend -->
+    <div class='p-2 border-t border-gray-800 flex gap-4 justify-center text-xs text-gray-400'>
+        <div class='flex items-center gap-1'>
+            <span class='w-3 h-3 rounded-full bg-blue-500 border border-blue-400'></span> Default
+        </div>
+        <div class='flex items-center gap-1'>
+            <span class='w-3 h-3 rounded-full bg-amber-400 border border-amber-300'></span> Current Node
+        </div>
+        <div class='flex items-center gap-1'>
+            <span class='w-3 h-3 rounded-full bg-orange-500 border border-orange-400'></span> Updated Node / Active Edge
+        </div>
+        <div class='flex items-center gap-1'>
+            <span class='w-3 h-3 rounded-full bg-emerald-500 border border-emerald-400'></span> Visited / Finalized
+        </div>
+    </div>
+</div>
+
+<!-- Right Panel (Controls & Log) -->
+<div class='w-[30%] h-full flex flex-col bg-gray-900 border-l border-gray-700'>
+    <!-- Top Controls -->
+    <div class='p-4 border-b border-gray-700 flex flex-col gap-3 bg-gray-800/50'>
+        <div class='grid grid-cols-3 gap-2'>
+            <button id='run-btn' class='bg-emerald-700 hover:bg-emerald-600 text-white rounded border border-emerald-600 font-bold py-2 shadow-sm transition-transform active:scale-95 text-xs text-center'>
+                ▶ Run
+            </button>
+            <button id='stop-btn' class='bg-red-700 hover:bg-red-600 text-white rounded border border-red-600 font-bold py-2 shadow-sm transition-transform active:scale-95 text-xs text-center'>
+                ⏹ Stop
+            </button>
+            <button id='reset-btn' class='bg-gray-700 hover:bg-gray-600 text-white rounded border border-gray-600 font-bold py-2 shadow-sm transition-transform active:scale-95 text-xs text-center'>
+                ↺ Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div id='log' class='flex-1 overflow-y-auto p-4 flex flex-col gap-2'>
+        <!-- Log entries will be prepended here -->
+    </div>
+</div>
+
+<script>
+    // --- Configuration and Data ---
+    const N_NODES = 5; // Number of nodes
+    const START_NODE = 1; // Starting node K
+    const TIMES = [
+        [1, 2, 9],
+        [1, 3, 2],
+        [2, 4, 3],
+        [3, 4, 1],
+        [4, 5, 5],
+        [3, 5, 8]
+    ];
+
+    // Initial node positions for visualization
+    const NODE_POSITIONS = {
+        1: { x: 100, y: 200 },
+        2: { x: 300, y: 100 },
+        3: { x: 300, y: 300 },
+        4: { x: 500, y: 200 },
+        5: { x: 700, y: 200 },
+    };
+    const NODE_RADIUS = 30; // Half of node width/height
+
+    // --- Algorithm State Variables ---
+    let graph = new Map(); // Adjacency list: Map<u, Array<{v, w}>>
+    let dist = new Array(N_NODES + 1).fill(Infinity); // dist[i] = min time to reach node i
+    let priorityQueue = []; // Stores [time, node] pairs
+    let visitedNodes = new Set(); // To track finalized nodes
+
+    let isPaused = false;
+    let isRunning = false;
+    let stepCount = 0;
+    let delay = 1000; // Default delay in ms
+
+    // --- DOM Elements ---
+    const vizWrapper = document.getElementById('viz-wrapper');
+    const canvas = document.getElementById('canvas');
+    const logPanel = document.getElementById('log');
+    const stepCounterEl = document.getElementById('step-counter');
+    const runBtn = document.getElementById('run-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const resetBtn = document.getElementById('reset-btn');
+
+    // --- Utility Functions ---
+    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+    async function waitIfPaused() {
+        while (isPaused) {
+            await sleep(100);
+        }
+    }
+
+    function addLog(msg, type = 'info') {
+        const el = document.createElement('div');
+        el.textContent = msg;
+        let baseClass = 'text-sm font-mono p-2 rounded mb-1 shadow-sm';
+        if (type === 'info') {
+            el.className = `${baseClass} text-amber-300 bg-gray-800/80 border-l-2 border-amber-500`;
+        } else if (type === 'success') {
+            el.className = `${baseClass} text-emerald-300 bg-gray-800/80 border-l-2 border-emerald-500`;
+        } else if (type === 'error') {
+            el.className = `${baseClass} text-red-300 bg-gray-800/80 border-l-2 border-red-500`;
+        }
+        logPanel.prepend(el);
+    }
+
+    function updateStepCounter() {
+        stepCounterEl.textContent = `Step: ${stepCount}`;
+    }
+
+    // --- Graph Rendering ---
+    function renderGraph() {
+        vizWrapper.innerHTML = ''; // Clear previous graph
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('viewBox', `0 0 ${getMaxX() + NODE_RADIUS} ${getMaxY() + NODE_RADIUS}`); // Adjust viewBox dynamically
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        svg.style.overflow = 'visible'; // Allow arrowheads to render outside bounds
+        vizWrapper.appendChild(svg);
+
+        // Define arrowhead marker
+        const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+        marker.setAttribute('id', 'arrowhead');
+        marker.setAttribute('markerWidth', '10');
+        marker.setAttribute('markerHeight', '10');
+        marker.setAttribute('refX', '8');
+        marker.setAttribute('refY', '3');
+        marker.setAttribute('orient', 'auto');
+        marker.innerHTML = '<polygon points="0 0, 10 3, 0 6" fill="#d1d5db" />'; // Default gray-300
+        defs.appendChild(marker);
+        svg.appendChild(defs);
+
+        // Render edges first (so nodes are on top)
+        for (const [u, neighbors] of graph.entries()) {
+            for (const { v, w } of neighbors) {
+                const uPos = NODE_POSITIONS[u];
+                const vPos = NODE_POSITIONS[v];
+
+                // Calculate adjusted start/end points for arrow to touch node border
+                const dx = vPos.x - uPos.x;
+                const dy = vPos.y - uPos.y;
+                const angle = Math.atan2(dy, dx);
+
+                const startX = uPos.x + NODE_RADIUS * Math.cos(angle);
+                const startY = uPos.y + NODE_RADIUS * Math.sin(angle);
+                const endX = vPos.x - NODE_RADIUS * Math.cos(angle);
+                const endY = vPos.y - NODE_RADIUS * Math.sin(angle);
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', startX);
+                line.setAttribute('y1', startY);
+                line.setAttribute('x2', endX);
+                line.setAttribute('y2', endY);
+                line.setAttribute('class', 'edge-path');
+                line.setAttribute('data-from', u);
+                line.setAttribute('data-to', v);
+                line.setAttribute('marker-end', 'url(#arrowhead)');
+                svg.appendChild(line);
+
+                // Edge weight text
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', (uPos.x + vPos.x) / 2);
+                text.setAttribute('y', (uPos.y + vPos.y) / 2 - 10); // Offset for visibility
+                text.setAttribute('class', 'edge-weight');
+                text.textContent = w;
+                text.setAttribute('data-from', u);
+                text.setAttribute('data-to', v);
+                svg.appendChild(text);
+            }
+        }
+
+        // Render nodes
+        for (let i = 1; i <= N_NODES; i++) {
+            const pos = NODE_POSITIONS[i];
+            const nodeDiv = document.createElement('div');
+            nodeDiv.id = `node-${i}`;
+            nodeDiv.className = 'node';
+            nodeDiv.style.left = `${pos.x - NODE_RADIUS}px`; // Adjust for center
+            nodeDiv.style.top = `${pos.y - NODE_RADIUS}px`; // Adjust for center
+            nodeDiv.innerHTML = `<div class='node-id'>${i}</div><div class='node-dist'>Dist: ${dist[i] === Infinity ? '∞' : dist[i]}</div>`;
+            vizWrapper.appendChild(nodeDiv);
+
+            // Make nodes draggable
+            makeDraggable(nodeDiv, i);
+        }
+
+        autoScale();
+    }
+
+    function updateNodeVisual(nodeId, type = 'default') {
+        const nodeDiv = document.getElementById(`node-${nodeId}`);
+        if (!nodeDiv) return;
+
+        nodeDiv.classList.remove('current', 'updated', 'visited');
+        if (type === 'current') {
+            nodeDiv.classList.add('current');
+        } else if (type === 'updated') {
+            nodeDiv.classList.add('updated');
+        } else if (type === 'visited') {
+            nodeDiv.classList.add('visited');
+        }
+        nodeDiv.querySelector('.node-dist').textContent = `Dist: ${dist[nodeId] === Infinity ? '∞' : dist[nodeId]}`;
+    }
+
+    function updateEdgeVisual(u, v, type = 'default') {
+        const edgePath = vizWrapper.querySelector(`.edge-path[data-from='${u}'][data-to='${v}']`);
+        const edgeWeight = vizWrapper.querySelector(`.edge-weight[data-from='${u}'][data-to='${v}']`);
+        const arrowheadPolygon = vizWrapper.querySelector('#arrowhead polygon');
+
+        if (edgePath && edgeWeight && arrowheadPolygon) {
+            edgePath.classList.remove('active', 'final');
+            edgeWeight.classList.remove('active', 'final');
+            if (type === 'active') {
+                edgePath.classList.add('active');
+                edgeWeight.classList.add('active');
+                arrowheadPolygon.setAttribute('fill', '#f97316'); // Orange
+            } else if (type === 'final') {
+                edgePath.classList.add('final');
+                edgeWeight.classList.add('final');
+                arrowheadPolygon.setAttribute('fill', '#10b981'); // Emerald
+            } else {
+                arrowheadPolygon.setAttribute('fill', '#d1d5db'); // Default gray-300
+            }
+        }
+    }
+
+    function getMaxX() {
+        let maxX = 0;
+        for (const id in NODE_POSITIONS) {
+            maxX = Math.max(maxX, NODE_POSITIONS[id].x);
+        }
+        return maxX + NODE_RADIUS;
+    }
+
+    function getMaxY() {
+        let maxY = 0;
+        for (const id in NODE_POSITIONS) {
+            maxY = Math.max(maxY, NODE_POSITIONS[id].y);
+        }
+        return maxY + NODE_RADIUS;
+    }
+
+    // --- Auto-scaling and Draggable Nodes ---
+    function autoScale() {
+        const container = document.getElementById('canvas');
+        const wrapper = document.getElementById('viz-wrapper');
+        if (!container || !wrapper) return;
+
+        // Calculate bounding box of all nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (let i = 1; i <= N_NODES; i++) {
+            const pos = NODE_POSITIONS[i];
+            minX = Math.min(minX, pos.x - NODE_RADIUS);
+            minY = Math.min(minY, pos.y - NODE_RADIUS);
+            maxX = Math.max(maxX, pos.x + NODE_RADIUS);
+            maxY = Math.max(maxY, pos.y + NODE_RADIUS);
+        }
+
+        // Set wrapper dimensions based on content bounding box
+        const contentWidth = maxX - minX + 60; // Add some padding
+        const contentHeight = maxY - minY + 60; // Add some padding
+
+        wrapper.style.width = `${contentWidth}px`;
+        wrapper.style.height = `${contentHeight}px`;
+
+        // Adjust wrapper position to center content
+        wrapper.style.left = `${(container.clientWidth - contentWidth) / 2}px`;
+        wrapper.style.top = `${(container.clientHeight - contentHeight) / 2}px`;
+
+        // Calculate scale based on container size
+        const scaleX = (container.clientWidth - 40) / contentWidth;
+        const scaleY = (container.clientHeight - 40) / contentHeight;
+        const scale = Math.min(1, scaleX, scaleY);
+
+        wrapper.style.transform = `scale(${scale})`;
+    }
+
+    function makeDraggable(element, nodeId) {
+        let isDragging = false;
+        let offsetX, offsetY;
+
+        element.addEventListener('mousedown', (e) => {
+            if (isRunning) return; // Prevent dragging during animation
+            isDragging = true;
+            element.style.cursor = 'grabbing';
+            offsetX = e.clientX - element.getBoundingClientRect().left;
+            offsetY = e.clientY - element.getBoundingClientRect().top;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); // Prevent text selection
+            const vizRect = vizWrapper.getBoundingClientRect();
+            let newX = e.clientX - vizRect.left - offsetX;
+            let newY = e.clientY - vizRect.top - offsetY;
+
+            // Keep node within vizWrapper bounds
+            newX = Math.max(0, Math.min(newX, vizRect.width - element.offsetWidth));
+            newY = Math.max(0, Math.min(newY, vizRect.height - element.offsetHeight));
+
+            element.style.left = `${newX}px`;
+            element.style.top = `${newY}px`;
+
+            // Update stored position (center of the node)
+            NODE_POSITIONS[nodeId].x = newX + NODE_RADIUS;
+            NODE_POSITIONS[nodeId].y = newY + NODE_RADIUS;
+
+            renderGraph(); // Re-render edges
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                element.style.cursor = 'grab';
+                autoScale(); // Re-scale after dragging
+            }
+        });
+    }
+
+    // --- Algorithm Logic (Dijkstra) ---
+    async function runDijkstra() {
+        isRunning = true;
+        runBtn.disabled = true;
+        stopBtn.disabled = false;
+        resetBtn.disabled = false;
+
+        addLog(`Algorithm started from node ${START_NODE}.`, 'info');
+
+        // Initialize distances and priority queue
+        dist.fill(Infinity);
+        dist[START_NODE] = 0;
+        priorityQueue = [[0, START_NODE]]; // [time, node]
+
+        // Initial render
+        for (let i = 1; i <= N_NODES; i++) {
+            updateNodeVisual(i, i === START_NODE ? 'current' : 'default');
+        }
+        await sleep(delay);
+        addLog(`Initialized distances. Node ${START_NODE} has distance 0, others ∞.`, 'info');
+        addLog(`Priority Queue: [[0, ${START_NODE}]]`, 'info');
+        await sleep(delay);
+
+        while (priorityQueue.length > 0) {
+            await waitIfPaused();
+            stepCount++;
+            updateStepCounter();
+
+            // Sort PQ to get min (simple array implementation for visualization)
+            priorityQueue.sort((a, b) => a[0] - b[0]);
+            const [currentTime, u] = priorityQueue.shift(); // Extract min
+
+            addLog(`Extracting node ${u} with current time ${currentTime} from PQ. PQ: [${priorityQueue.map(p => `[${p[0]},${p[1]}]`).join(', ')}]`, 'info');
+            updateNodeVisual(u, 'current');
+            await sleep(delay);
+
+            // If we've already found a shorter path, skip
+            if (currentTime > dist[u]) {
+                addLog(`Skipping node ${u} as a shorter path (${dist[u]}) has already been found.`, 'info');
+                updateNodeVisual(u, 'visited'); // Mark as visited even if skipped
+                await sleep(delay);
+                continue;
+            }
+
+            // Mark node as visited/finalized
+            visitedNodes.add(u);
+            updateNodeVisual(u, 'visited');
+            addLog(`Node ${u} finalized with shortest time ${dist[u]}.`, 'info');
+            await sleep(delay);
+
+            // Relax neighbors
+            const neighbors = graph.get(u) || [];
+            for (const { v, w } of neighbors) {
+                await waitIfPaused();
+                stepCount++;
+                updateStepCounter();
+
+                updateEdgeVisual(u, v, 'active');
+                addLog(`Considering edge ${u} -> ${v} with weight ${w}.`, 'info');
+                await sleep(delay);
+
+                if (dist[u] + w < dist[v]) {
+                    addLog(`Path to node ${v} updated! Old dist: ${dist[v] === Infinity ? '∞' : dist[v]}, New dist: ${dist[u] + w}.`, 'info');
+                    dist[v] = dist[u] + w;
+                    priorityQueue.push([dist[v], v]);
+                    updateNodeVisual(v, 'updated'); // Temporarily highlight as updated
+                    addLog(`Added [${dist[v]}, ${v}] to PQ. PQ: [${priorityQueue.map(p => `[${p[0]},${p[1]}]`).join(', ')}]`, 'info');
+                    await sleep(delay);
+                } else {
+                    addLog(`No shorter path found for node ${v}. Current dist: ${dist[v] === Infinity ? '∞' : dist[v]}, Path via ${u}: ${dist[u] + w}.`, 'info');
+                    await sleep(delay);
+                }
+                updateEdgeVisual(u, v, 'default'); // Reset edge color
+                if (!visitedNodes.has(v)) { // If not yet finalized, revert to default
+                    updateNodeVisual(v, 'default');
+                } else { // If already finalized, keep visited color
+                    updateNodeVisual(v, 'visited');
+                }
+            }
+        }
+
+        // --- Algorithm Completion ---
+        let maxTime = 0;
+        let allReachable = true;
+        for (let i = 1; i <= N_NODES; i++) {
+            if (dist[i] === Infinity) {
+                allReachable = false;
+                break;
+            }
+            maxTime = Math.max(maxTime, dist[i]);
+        }
+
+        if (allReachable) {
+            addLog(`Algorithm complete! All nodes reached. Minimum time for all nodes to receive signal: ${maxTime}.`, 'success');
+            for (let i = 1; i <= N_NODES; i++) {
+                updateNodeVisual(i, 'visited');
+            }
+            // Mark all edges as final
+            for (const [u, neighbors] of graph.entries()) {
+                for (const { v, w } of neighbors) {
+                    updateEdgeVisual(u, v, 'final');
+                }
+            }
+        } else {
+            addLog(`Algorithm complete! Not all nodes could be reached from node ${START_NODE}. Returning -1.`, 'error');
+            for (let i = 1; i <= N_NODES; i++) {
+                if (dist[i] !== Infinity) {
+                    updateNodeVisual(i, 'visited');
+                } else {
+                    // Highlight unreachable nodes differently
+                    const nodeDiv = document.getElementById(`node-${i}`);
+                    if (nodeDiv) {
+                        nodeDiv.style.backgroundColor = '#ef4444'; // bg-red-500
+                        nodeDiv.style.borderColor = '#f87171'; // border-red-400
+                    }
+                }
+            }
+        }
+
+        isRunning = false;
+        runBtn.disabled = true; // Disable run after completion
+        stopBtn.disabled = true;
+    }
+
+    // --- Initialization and Event Listeners ---
+    function initialize() {
+        // Build graph adjacency list
+        graph.clear();
+        for (let i = 1; i <= N_NODES; i++) {
+            graph.set(i, []);
+        }
+        for (const [u, v, w] of TIMES) {
+            graph.get(u).push({ v, w });
+        }
+
+        dist.fill(Infinity);
+        dist[START_NODE] = 0;
+        priorityQueue = [];
+        visitedNodes.clear();
+
+        isPaused = false;
+        isRunning = false;
+        stepCount = 0;
+
+        logPanel.innerHTML = '';
+        updateStepCounter();
+
+        runBtn.disabled = false;
+        stopBtn.disabled = true;
+        resetBtn.disabled = false;
+
+        renderGraph();
+        addLog('Ready to start Dijkstra\'s algorithm.', 'info');
+    }
+
+    runBtn.addEventListener('click', () => {
+        if (!isRunning) {
+            runDijkstra();
+        } else {
+            isPaused = false;
+            addLog('Algorithm resumed.', 'info');
+        }
+        runBtn.disabled = true;
+        stopBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener('click', () => {
+        isPaused = true;
+        addLog('Algorithm paused.', 'info');
+        runBtn.disabled = false;
+        stopBtn.disabled = true;
+    });
+
+    resetBtn.addEventListener('click', () => {
+        isPaused = true; // Ensure any running loop pauses
+        isRunning = false; // Signal to stop
+        initialize();
+        addLog('Algorithm reset.', 'info');
+    });
+
+    // Listen for speed changes from parent (e.g., an external UI)
+    window.addEventListener('message', (e) => {
+        if (e.data && e.data.type === 'SET_SPEED') {
+            delay = e.data.value;
+        }
+    });
+
+    window.addEventListener('resize', autoScale);
+
+    // Initial setup
+    initialize();
+</script>
+</body>
+</html>

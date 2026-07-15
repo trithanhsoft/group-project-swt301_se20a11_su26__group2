@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useOutletContext } from 'react-router-dom';
 import { problemService } from '../services/problemService';
 import { useApp } from '../context/AppContext';
 import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import { CodeEditor } from '../components/CodeEditor';
+import type { ContestOverviewData } from '../components/Layout';
 
 export const ContestProblemSolve: React.FC = () => {
   const { user } = useApp();
   const { id, problemId } = useParams<{ id: string; problemId: string }>();
   const contestId = id || '';
+  const { contest } = useOutletContext<{ contest: ContestOverviewData | null }>();
 
-  const [activeTab, setActiveTab] = useState<'description' | 'submissions' | 'result'>(() => {
+  const [activeTab, setActiveTab] = useState<'description' | 'submissions'>(() => {
     const savedTab = sessionStorage.getItem('contestSolveProblemActiveTab');
     const savedId = sessionStorage.getItem('contestSolveProblemActiveId');
-    if (savedId === problemId && savedTab && ['description', 'submissions', 'result'].includes(savedTab)) {
+    if (savedId === problemId && savedTab && ['description', 'submissions'].includes(savedTab)) {
       return (savedTab as any) || 'description';
     }
     return 'description';
@@ -22,6 +24,7 @@ export const ContestProblemSolve: React.FC = () => {
 
   const [testcasesLogs, setTestcasesLogs] = useState<any[]>([]);
   const [overallResult, setOverallResult] = useState<any>(null);
+  const [maintenanceError, setMaintenanceError] = useState<boolean>(false);
   const [expandedTestcases, setExpandedTestcases] = useState<{[key: number]: boolean}>({});
   const [copiedInput, setCopiedInput] = useState<boolean>(false);
   const [copiedOutput, setCopiedOutput] = useState<boolean>(false);
@@ -261,7 +264,6 @@ export const ContestProblemSolve: React.FC = () => {
 
     problemService.submitSolution(problemId, selectedLangId, sourceCode, contestId)
       .then(() => {
-        setActiveTab('result');
         if (user && user.id) {
           const socket = new SockJS('http://localhost:8080/nonstopcoding/ws');
           const stompClient = Stomp.over(socket);
@@ -295,11 +297,16 @@ export const ContestProblemSolve: React.FC = () => {
       })
       .catch(err => {
         setIsSubmitting(false);
-        alert(err.message || 'Submission failed');
+        const errMsg = err.message || 'Submission failed';
+        if (errMsg.includes('404') || errMsg.includes('Not Found') || errMsg.includes('Lỗi hệ thống') || errMsg.toLowerCase().includes('judge0') || errMsg.toLowerCase().includes('ngrok')) {
+          setMaintenanceError(true);
+        } else {
+          alert(errMsg);
+        }
       });
   };
 
-  const getTabClass = (tab: 'description' | 'submissions' | 'result') => {
+  const getTabClass = (tab: 'description' | 'submissions') => {
     return activeTab === tab
       ? "py-3 text-sm font-bold text-primary border-b-2 border-primary whitespace-nowrap outline-none"
       : "py-3 text-sm font-medium text-text-muted hover:text-text-main whitespace-nowrap border-b-2 border-transparent outline-none";
@@ -425,7 +432,6 @@ export const ContestProblemSolve: React.FC = () => {
           <div className="flex items-center gap-6 px-4 bg-surface-gray border-b border-gray-200 shrink-0 overflow-x-auto hide-scrollbar">
             <button className={getTabClass('description')} onClick={() => setActiveTab('description')}>Description</button>
             <button className={getTabClass('submissions')} onClick={() => setActiveTab('submissions')}>Submissions</button>
-            <button className={getTabClass('result')} onClick={() => setActiveTab('result')}>Test Result</button>
           </div>
 
           {/* Tab Contents */}
@@ -528,7 +534,8 @@ export const ContestProblemSolve: React.FC = () => {
                     <table className="w-full text-left border-collapse whitespace-nowrap min-w-[600px]">
                       <thead>
                         <tr className="bg-surface-gray border-b border-gray-200 text-text-muted text-xs font-bold uppercase tracking-wider">
-                          <th className="p-4 w-1/3">Status</th>
+                          <th className="p-4 w-1/4">Status</th>
+                          <th className="p-4">User</th>
                           <th className="p-4">Language</th>
                           <th className="p-4">Runtime</th>
                           <th className="p-4">Memory</th>
@@ -541,6 +548,7 @@ export const ContestProblemSolve: React.FC = () => {
                             <td className="p-4">
                               <span className={`${sub.statusClass} font-bold group-hover:underline`}>{sub.status}</span>
                             </td>
+                            <td className="p-4 text-text-muted">{sub.displayName || sub.username}</td>
                             <td className="p-4 text-text-muted">{sub.lang}</td>
                             <td className="p-4">{sub.runtime}</td>
                             <td className="p-4">{sub.memory}</td>
@@ -549,7 +557,7 @@ export const ContestProblemSolve: React.FC = () => {
                         ))}
                         {filteredSubmissions.length === 0 && (
                           <tr>
-                            <td colSpan={5} className="p-8 text-center text-text-muted">
+                            <td colSpan={6} className="p-8 text-center text-text-muted">
                               No submissions found for this problem.
                             </td>
                           </tr>
@@ -561,90 +569,6 @@ export const ContestProblemSolve: React.FC = () => {
               </div>
             )}
 
-            {/* Result Tab */}
-            {activeTab === 'result' && (
-              <div id="tab-result" className="block space-y-4 pb-12">
-                <div className="flex items-center justify-between border-b border-gray-200 pb-3 mb-4">
-                  <h2 className="text-xl font-bold text-brand-blue">Test Result</h2>
-                  {overallResult ? (
-                    <div className="text-sm font-medium text-text-muted">{overallResult.totalTestcases} Testcases</div>
-                  ) : testcasesLogs.length > 0 ? (
-                    <div className="text-sm font-medium text-text-muted">{testcasesLogs[testcasesLogs.length - 1]?.processedTestcases || 0} / {testcasesLogs[testcasesLogs.length - 1]?.totalTestcases || 0} Testcases Processed</div>
-                  ) : isSubmitting ? (
-                    <div className="text-sm font-medium text-warning-color animate-pulse">Running...</div>
-                  ) : null}
-                </div>
-
-                {overallResult && (
-                  <div className={`p-4 rounded-lg border shadow-sm mb-6 ${overallResult.overallVerdict === 'ACCEPTED' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                    <h3 className={`font-bold text-lg mb-2 ${overallResult.overallVerdict === 'ACCEPTED' ? 'text-brand-green' : 'text-red-600'}`}>
-                      {overallResult.overallVerdict === 'ACCEPTED' ? 'Accepted' : overallResult.overallVerdict.replace(/_/g, ' ')}
-                    </h3>
-                    <div className="flex gap-6 text-sm text-text-main">
-                      <div><span className="text-text-muted font-medium">Runtime:</span> {overallResult.executionTimeMs?.toFixed(1) || 0} ms</div>
-                      <div><span className="text-text-muted font-medium">Memory:</span> {(overallResult.memoryUsedKb / 1024).toFixed(1) || 0} MB</div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  {testcasesLogs.map((log, index) => {
-                    const isExpanded = expandedTestcases[log.testcaseId] || false;
-                    const isSuccess = log.testcaseVerdict === 'ACCEPTED';
-                    return (
-                      <div key={log.testcaseId} className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                        <div 
-                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
-                          onClick={() => toggleTestcaseDetails(log.testcaseId)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white ${isSuccess ? 'bg-brand-green' : 'bg-red-500'}`}>
-                              <span className="material-symbols-outlined text-[16px]">{isSuccess ? 'check' : 'close'}</span>
-                            </div>
-                            <span className="font-bold text-text-main text-sm">Testcase {index + 1}</span>
-                          </div>
-                          <button className="text-sm font-semibold text-primary hover:text-primary-hover">
-                            {isExpanded ? 'Hide Details' : 'View Details'}
-                          </button>
-                        </div>
-                        
-                        {isExpanded && (
-                          <div className="p-4 border-t border-gray-100 space-y-4 bg-gray-50/50">
-                            <div>
-                              <div className="text-xs font-bold text-text-muted uppercase mb-1.5 tracking-wider">Input</div>
-                              <div className="bg-surface-gray border border-gray-200 rounded p-3 font-mono text-sm text-text-main whitespace-pre-wrap">{log.input ? log.input.replace(/\\n/g, '\n') : 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-text-muted uppercase mb-1.5 tracking-wider">Expected Output</div>
-                              <div className="bg-green-50 border border-green-200 rounded p-3 font-mono text-sm text-brand-green whitespace-pre-wrap">{log.expectedOutput ? log.expectedOutput.replace(/\\n/g, '\n') : 'N/A'}</div>
-                            </div>
-                            <div>
-                              <div className="text-xs font-bold text-text-muted uppercase mb-1.5 tracking-wider">Actual Output</div>
-                              <div className={`border rounded p-3 font-mono text-sm whitespace-pre-wrap ${isSuccess ? 'bg-surface-gray border-gray-200 text-text-main' : 'bg-red-50 border-red-200 text-red-600'}`}>{log.actualOutput ? log.actualOutput.replace(/\\n/g, '\n') : 'N/A'}</div>
-                            </div>
-                            {log.compileOutput && (
-                                <div>
-                                    <div className="text-xs font-bold text-text-muted uppercase mb-1.5 tracking-wider">Compile/Error Output</div>
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3 font-mono text-sm text-yellow-700 whitespace-pre-wrap">{log.compileOutput.replace(/\\n/g, '\n')}</div>
-                                </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {isSubmitting && testcasesLogs.length === 0 && (
-                    <div className="py-12 flex flex-col items-center justify-center text-text-muted">
-                      <svg className="animate-spin h-8 w-8 text-primary mb-3" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      <span className="font-semibold text-sm">Evaluating your code against test cases...</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
@@ -693,27 +617,86 @@ export const ContestProblemSolve: React.FC = () => {
           </div>
 
           {/* Action Bar */}
-          <div className="p-3 bg-surface border-t border-gray-200 flex justify-end gap-3 shrink-0">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-8 py-2 bg-brand-green hover:bg-[#3d8c38] text-white rounded-lg font-bold transition-colors shadow-sm text-sm active:scale-95 disabled:bg-gray-400 flex items-center justify-center gap-2"
+          {((user?.role as any) !== 'ROLE_ADMIN' && (user?.role as any) !== 'ADMIN' && user?.role !== 'admin') && (
+            <div className="p-3 bg-surface border-t border-gray-200 flex justify-between items-center gap-3 shrink-0 min-h-[60px]">
+              
+              {/* Left Side: Result Display */}
+              <div className="flex-1 flex items-center min-w-0 pr-4">
+                {overallResult ? (
+                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-sm truncate max-w-full ${overallResult.overallVerdict === 'ACCEPTED' ? 'bg-green-50 text-brand-green border border-green-200' : 'bg-red-50 text-red-600 border border-red-200'}`}>
+                    <span className="material-symbols-outlined text-[18px] shrink-0">{overallResult.overallVerdict === 'ACCEPTED' ? 'check_circle' : 'error'}</span>
+                    <span className="truncate">{overallResult.overallVerdict === 'ACCEPTED' ? 'Accepted' : overallResult.overallVerdict.replace(/_/g, ' ')}</span>
+                    <span className="ml-2 text-[11px] font-medium opacity-80 shrink-0 border-l pl-2 border-current">
+                      {overallResult.executionTimeMs?.toFixed(1) || 0}ms | {(overallResult.memoryUsedKb / 1024).toFixed(1) || 0}MB
+                    </span>
+                  </div>
+                ) : isSubmitting && testcasesLogs.length > 0 ? (
+                  <div className="text-sm font-medium text-text-muted truncate">
+                    Processing: {testcasesLogs[testcasesLogs.length - 1]?.processedTestcases || 0} / {testcasesLogs[testcasesLogs.length - 1]?.totalTestcases || '?'}
+                  </div>
+                ) : (
+                  <div></div>
+                )}
+              </div>
+              
+              {/* Right Side: Submit Button or Warning */}
+              <div className="shrink-0 flex items-center">
+                {contest?.status === 'ENDED' ? (
+                  <div className="flex items-center gap-1.5 px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm font-bold border border-red-200">
+                    <span className="material-symbols-outlined text-[18px]">timer_off</span>
+                    Time's up! The contest has ended.
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="px-8 py-2 bg-brand-green hover:bg-[#3d8c38] text-white rounded-lg font-bold transition-colors shadow-sm text-sm active:scale-95 disabled:bg-gray-400 flex items-center justify-center gap-2 min-w-[120px]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Maintenance Modal */}
+      {maintenanceError && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in border border-slate-200 text-center relative">
+            <button 
+              onClick={() => setMaintenanceError(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
             >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Submitting...
-                </>
-              ) : (
-                'Submit'
-              )}
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <span className="material-symbols-outlined text-3xl">build</span>
+            </div>
+            <h3 className="text-xl font-display font-bold text-slate-800 mb-2">System Under Maintenance</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              The online judge system is currently under maintenance or temporarily unavailable. Please try submitting your code again in a few minutes. We apologize for the inconvenience!
+            </p>
+            <button
+              onClick={() => setMaintenanceError(false)}
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2.5 rounded-lg transition-colors border-none cursor-pointer"
+            >
+              Got it
             </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

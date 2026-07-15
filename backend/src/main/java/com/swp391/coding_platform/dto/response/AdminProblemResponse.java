@@ -31,6 +31,7 @@ public class AdminProblemResponse {
     String solutions;
     Integer totalSubmissions;
     Integer acceptedSubmissions;
+    Boolean isDeleted;
     java.util.List<String> tags;
     java.util.Map<String, String> starterTemplates;
 }

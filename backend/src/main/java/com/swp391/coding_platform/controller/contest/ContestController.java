@@ -140,10 +140,14 @@ public class ContestController {
     @GetMapping("/{contestId}/problems")
     public ResponseEntity<ApiResponse<List<ContestProblemResponse>>> getContestProblems(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable("contestId") Integer contestId) {
+            @PathVariable("contestId") Integer contestId,
+            Authentication authentication) {
 
         Integer userId = getUserId(jwt);
-        List<ContestProblemResponse> result = contestService.getContestProblems(contestId, userId);
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ADMIN".equals(a.getAuthority()));
+
+        List<ContestProblemResponse> result = contestService.getContestProblems(contestId, userId, isAdmin);
 
         return ResponseEntity.ok(ApiResponse.<List<ContestProblemResponse>>builder()
                 .status(200)
@@ -158,9 +162,13 @@ public class ContestController {
     public ResponseEntity<ApiResponse<ContestProblemDetailResponse>> getContestProblemDetail(
             @AuthenticationPrincipal Jwt jwt,
             @PathVariable("contestId") Integer contestId,
-            @PathVariable("problemId") Integer problemId) {
+            @PathVariable("problemId") Integer problemId,
+            Authentication authentication) {
         Integer userId = getUserId(jwt);
-        ContestProblemDetailResponse result = contestService.getContestProblemDetail(contestId, problemId, userId);
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()) || "ADMIN".equals(a.getAuthority()));
+                
+        ContestProblemDetailResponse result = contestService.getContestProblemDetail(contestId, problemId, userId, isAdmin);
         return ResponseEntity.ok(ApiResponse.<ContestProblemDetailResponse>builder()
                 .status(200)
                 .code(1000)

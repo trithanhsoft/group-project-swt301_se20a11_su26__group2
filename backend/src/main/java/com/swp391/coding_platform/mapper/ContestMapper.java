@@ -28,8 +28,8 @@ public interface ContestMapper {
     AdminContestResponse toAdminContestResponse(ContestEntity contestEntity);
 
     @Mapping(target = "problemId", source = "problem.id")
-    @Mapping(target = "title", source = "problem.title")
-    @Mapping(target = "difficulty", expression = "java(contestProblemEntity.getProblem().getDifficulty() != null ? contestProblemEntity.getProblem().getDifficulty().name() : null)")
+    @Mapping(target = "title", source = "problemVersion.title")
+    @Mapping(target = "difficulty", expression = "java(contestProblemEntity.getProblemVersion().getDifficulty() != null ? contestProblemEntity.getProblemVersion().getDifficulty().name() : null)")
     @Mapping(target = "score", source = "problem.score")
     AdminContestProblemResponse toAdminContestProblemResponse(ContestProblemEntity contestProblemEntity);
 }

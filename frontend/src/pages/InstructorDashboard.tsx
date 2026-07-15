@@ -1807,9 +1807,9 @@ export const InstructorDashboard: React.FC = () => {
       setPrereqPoints(['']);
       setAudiencePoints(['']);
       setBenefitPoints(['']);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to create course:', err);
-      setCourseFormError('An error occurred while creating the course. Please try again.');
+      setCourseFormError(err.message || 'An error occurred while creating the course. Please try again.');
     } finally {
       setIsSubmittingCourse(false);
     }
@@ -1847,6 +1847,14 @@ export const InstructorDashboard: React.FC = () => {
   const [selectedFailedPayout, setSelectedFailedPayout] = useState<PayoutHistoryItem | null>(null);
   const [isAllPayoutsModalOpen, setIsAllPayoutsModalOpen] = useState<boolean>(false);
   const [enrollmentPage, setEnrollmentPage] = useState<number>(1);
+  const [payoutPage, setPayoutPage] = useState<number>(1);
+
+  const PAYOUTS_PER_PAGE = 3;
+  const totalPayoutPages = Math.ceil(payoutHistory.length / PAYOUTS_PER_PAGE);
+  const displayedPayoutHistory = payoutHistory.slice(
+    (payoutPage - 1) * PAYOUTS_PER_PAGE,
+    payoutPage * PAYOUTS_PER_PAGE
+  );
 
   const displayedTakeHome = totalActualTakeHome;
   const earningsBreakdown = courseBreakdown;
@@ -2162,7 +2170,7 @@ export const InstructorDashboard: React.FC = () => {
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white text-xs md:text-sm font-semibold transition-all duration-200 justify-center md:justify-start shadow-md shadow-primary/20"
           >
             <span className="material-symbols-outlined text-[20px] shrink-0">swap_horiz</span>
-            <span className="sidebar-footer-text whitespace-nowrap">Student View</span>
+            <span className="sidebar-footer-text whitespace-nowrap">Customer View</span>
           </Link>
 
           {/* Instructor User Identity */}
@@ -2234,12 +2242,7 @@ export const InstructorDashboard: React.FC = () => {
 
                   {/* Quick Action Buttons */}
                   <div className="relative z-10 flex flex-wrap gap-2.5 shrink-0 w-full md:w-auto">
-                    <button
-                      onClick={() => setIsCreateCourseOpen(true)}
-                      className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all duration-200 shadow-md shadow-primary/20 hover:scale-[1.02]"
-                    >
-                      <span className="material-symbols-outlined text-sm font-bold">add</span> Create Course
-                    </button>
+
                     <a
                       href="#my-courses"
                       className="flex-1 md:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white/10 hover:bg-white/15 text-white rounded-xl text-xs font-bold transition-all duration-200 border border-white/10 hover:scale-[1.02]"
@@ -2782,7 +2785,7 @@ export const InstructorDashboard: React.FC = () => {
                         topPerformingCourses.map((c) => (
                           <div 
                             key={c.id} 
-                            onClick={() => openSyllabusEditor(c)}
+                            onClick={() => handleOpenStatistics(c)}
                             className="group flex flex-col sm:flex-row items-center gap-4 p-3.5 rounded-2xl border border-slate-100 hover:border-primary/20 hover:bg-[#fff9f6]/30 transition-all duration-300 cursor-pointer"
                           >
                             {/* Left course mini-banner */}
@@ -2825,7 +2828,7 @@ export const InstructorDashboard: React.FC = () => {
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setSelectedCourseForStats(c);
+                                  handleOpenStatistics(c);
                                 }}
                                 className="w-8 h-8 rounded-full border border-slate-200 hover:border-primary/45 hover:bg-[#fff9f6] text-slate-400 hover:text-primary transition-all flex items-center justify-center cursor-pointer bg-transparent outline-none mt-1"
                                 title="View Course Statistics"
@@ -4086,6 +4089,9 @@ export const InstructorDashboard: React.FC = () => {
                     <div>
                       <h3 className="font-display font-black text-sm text-brand-blue uppercase tracking-wider">Monthly Payout History Log</h3>
                       <p className="text-xs text-text-muted mt-0.5">Automated monthly payout logs processed and credited to your registered bank account.</p>
+                      <div className="mt-2 inline-block px-3 py-1 rounded-xl bg-slate-50 border border-slate-200 text-brand-blue font-bold text-xs">
+                        Showing {displayedPayoutHistory.length} of {payoutHistory.length} transactions
+                      </div>
                     </div>
                     {/* Quick System Payout Badge */}
                     <div className="bg-[#e8f0fe] border border-blue-200 px-3.5 py-2.5 rounded-2xl flex items-center gap-2.5 shrink-0 shadow-sm">
@@ -4110,7 +4116,7 @@ export const InstructorDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
-                        {payoutHistory.slice(0, 3).map((item) => (
+                        {displayedPayoutHistory.map((item) => (
                           <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="py-3.5 px-4 font-bold text-brand-blue">{item.payoutPeriod}</td>
                             <td className="py-3.5 px-4 text-right text-slate-900 font-bold">
@@ -4149,16 +4155,39 @@ export const InstructorDashboard: React.FC = () => {
                     </table>
                   </div>
 
-                  {/* View All Payouts Button */}
-                  {payoutHistory.length > 3 && (
-                    <div className="flex justify-center mt-5 pt-3 border-t border-slate-100">
+                  {/* Pagination Controls */}
+                  {totalPayoutPages > 1 && (
+                    <div className="flex items-center justify-between mt-5 pt-3 border-t border-slate-100">
                       <button
                         type="button"
-                        onClick={() => setIsAllPayoutsModalOpen(true)}
-                        className="px-5 py-2.5 bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-brand-blue font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                        onClick={() => setPayoutPage(prev => Math.max(prev - 1, 1))}
+                        disabled={payoutPage === 1}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${
+                          payoutPage === 1
+                            ? 'bg-slate-50 text-slate-350 border border-slate-100 cursor-not-allowed'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-brand-blue active:scale-90 shadow-sm'
+                        }`}
+                        title="Previous page"
                       >
-                        <span className="material-symbols-outlined text-base">history</span>
-                        View All Automatic Payouts
+                        <span className="material-symbols-outlined text-[16px] font-bold">chevron_left</span>
+                      </button>
+
+                      <span className="text-[10px] font-extrabold text-slate-500 select-none">
+                        {payoutPage} / {totalPayoutPages}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setPayoutPage(prev => Math.min(prev + 1, totalPayoutPages))}
+                        disabled={payoutPage === totalPayoutPages}
+                        className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all ${
+                          payoutPage === totalPayoutPages
+                            ? 'bg-slate-50 text-slate-350 border border-slate-100 cursor-not-allowed'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-brand-blue active:scale-90 shadow-sm'
+                        }`}
+                        title="Next page"
+                      >
+                        <span className="material-symbols-outlined text-[16px] font-bold">chevron_right</span>
                       </button>
                     </div>
                   )}
@@ -5518,11 +5547,14 @@ export const InstructorDashboard: React.FC = () => {
               <div className="p-6 md:p-8 flex flex-col gap-6 max-h-[72vh] overflow-y-auto bg-slate-50/30">
                 
                 {courseFormError && (
-                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl flex items-start gap-3 animate-fade-in shrink-0">
-                    <span className="material-symbols-outlined text-red-500 shrink-0">error</span>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold">Validation Error</span>
-                      <span className="text-sm">{courseFormError}</span>
+                  <div className="relative overflow-hidden bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl p-4 shadow-[0_8px_16px_-6px_rgba(239,68,68,0.15)] flex items-start gap-4 animate-fade-in shrink-0">
+                    <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-red-500 to-rose-500 rounded-l-2xl"></div>
+                    <div className="bg-white p-2 rounded-full shadow-sm border border-red-100 shrink-0 mt-0.5">
+                      <span className="material-symbols-outlined text-red-500 shrink-0 text-xl" style={{ fontVariationSettings: '"FILL" 1' }}>error</span>
+                    </div>
+                    <div className="flex flex-col pt-1">
+                      <span className="text-xs font-black text-red-700 tracking-wider uppercase mb-1">Creation Failed</span>
+                      <span className="text-sm text-red-600/90 font-medium leading-relaxed">{courseFormError}</span>
                     </div>
                   </div>
                 )}

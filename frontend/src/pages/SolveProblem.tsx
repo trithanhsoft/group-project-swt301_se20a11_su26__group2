@@ -7,12 +7,13 @@ import SockJS from 'sockjs-client';
 import { Stomp } from '@stomp/stompjs';
 import { CodeEditor } from '../components/CodeEditor';
 import Editor from '@monaco-editor/react';
+import AiVisualizerPanel from '../components/AiVisualizerPanel';
 
 export const SolveProblem: React.FC = () => {
   const { user } = useApp();
   const { id } = useParams<{ id: string }>();
 
-  const [activeTab, setActiveTab] = useState<'description' | 'discussion' | 'solutions' | 'submissions' | 'result'>(() => {
+  const [activeTab, setActiveTab] = useState<'description' | 'discussion' | 'solutions' | 'submissions' | 'result' | 'ai-visualizer'>(() => {
     const savedTab = sessionStorage.getItem('solveProblemActiveTab');
     const savedId = sessionStorage.getItem('solveProblemActiveId');
     if (savedId === id && savedTab) {
@@ -23,6 +24,7 @@ export const SolveProblem: React.FC = () => {
 
   const [testcasesLogs, setTestcasesLogs] = useState<any[]>([]);
   const [overallResult, setOverallResult] = useState<any>(null);
+  const [maintenanceError, setMaintenanceError] = useState<boolean>(false);
   const [expandedTestcases, setExpandedTestcases] = useState<{[key: number]: boolean}>({});
   const [copiedInput, setCopiedInput] = useState<boolean>(false);
   const [copiedOutput, setCopiedOutput] = useState<boolean>(false);
@@ -406,11 +408,16 @@ export const SolveProblem: React.FC = () => {
       })
       .catch(err => {
         setIsSubmitting(false);
-        alert(err.message || 'Submission failed');
+        const errMsg = err.message || 'Submission failed';
+        if (errMsg.includes('404') || errMsg.includes('Not Found') || errMsg.includes('Lỗi hệ thống') || errMsg.toLowerCase().includes('judge0') || errMsg.toLowerCase().includes('ngrok')) {
+          setMaintenanceError(true);
+        } else {
+          alert(errMsg);
+        }
       });
   };
 
-  const getTabClass = (tab: 'description' | 'discussion' | 'solutions' | 'submissions' | 'result') => {
+  const getTabClass = (tab: 'description' | 'discussion' | 'solutions' | 'submissions' | 'result' | 'ai-visualizer') => {
     return activeTab === tab
       ? "py-3 text-sm font-bold text-primary border-b-2 border-primary whitespace-nowrap outline-none"
       : "py-3 text-sm font-medium text-text-muted hover:text-text-main whitespace-nowrap border-b-2 border-transparent outline-none";
@@ -530,7 +537,7 @@ export const SolveProblem: React.FC = () => {
 
       <div className="flex-grow flex h-[calc(100vh-112px)] overflow-hidden relative" id="split-container">
         {/* Left Pane */}
-        <div id="left-pane" className="flex flex-col bg-surface border-r border-gray-200 overflow-hidden" style={{ width: `${leftWidth}%` }}>
+        <div id="left-pane" className="flex flex-col bg-surface border-r border-gray-200 overflow-hidden" style={{ width: activeTab === 'ai-visualizer' ? '100%' : `${leftWidth}%` }}>
           {/* Navbar */}
           <div className="flex items-center gap-6 px-4 bg-surface-gray border-b border-gray-200 shrink-0 overflow-x-auto hide-scrollbar">
             <button className={getTabClass('description')} onClick={() => setActiveTab('description')}>Description</button>
@@ -538,6 +545,9 @@ export const SolveProblem: React.FC = () => {
             <button className={getTabClass('solutions')} onClick={() => setActiveTab('solutions')}>Solutions</button>
             <button className={getTabClass('submissions')} onClick={() => setActiveTab('submissions')}>Submissions</button>
             <button className={getTabClass('result')} onClick={() => setActiveTab('result')}>Test Result</button>
+            <button className={getTabClass('ai-visualizer')} onClick={() => setActiveTab('ai-visualizer')}>
+              <span className="flex items-center gap-1"><span className="material-symbols-outlined text-sm">smart_toy</span> AI Tutor</span>
+            </button>
           </div>
 
           {/* Tab Contents */}
@@ -644,6 +654,20 @@ export const SolveProblem: React.FC = () => {
                     </details>
                   ));
                 })()}
+              </div>
+            )}
+
+            {/* AI Visualizer Tab */}
+            {activeTab === 'ai-visualizer' && problem && (
+              <div id="tab-ai-visualizer" className="block space-y-6">
+                <AiVisualizerPanel problemRequest={{
+                  problemId: id,
+                  title: problem.title,
+                  description: problem.description,
+                  constraints: problem.constraints,
+                  inputDescription: problem.inputDescription,
+                  outputDescription: problem.outputDescription
+                }} />
               </div>
             )}
 
@@ -986,71 +1010,102 @@ export const SolveProblem: React.FC = () => {
         </div>
 
         {/* Resizer */}
-        <div
-          id="resizer"
-          className={`resizer shrink-0 ${isResizing ? 'dragging' : ''}`}
-          title="Drag to resize"
-          onMouseDown={startResizing}
-        ></div>
+        {activeTab !== 'ai-visualizer' && (
+          <div
+            id="resizer"
+            className={`resizer shrink-0 ${isResizing ? 'dragging' : ''}`}
+            title="Drag to resize"
+            onMouseDown={startResizing}
+          ></div>
+        )}
 
         {/* Right Pane */}
-        <div id="right-pane" className="flex flex-col bg-surface border-l border-gray-200 overflow-hidden relative" style={{ width: `${100 - leftWidth}%` }}>
-          {/* Editor Header */}
-          <div className="flex items-center justify-between p-2 bg-surface border-b border-gray-200 shrink-0">
-            <div className="flex items-center gap-2">
-              <select
-                value={selectedLangId}
-                onChange={handleLangChange}
-                className="bg-surface-gray border border-gray-300 text-text-main text-sm rounded-md focus:ring-primary focus:border-primary block pl-3 pr-10 py-1.5 font-medium cursor-pointer outline-none"
-              >
-                {SUPPORTED_LANGUAGES.map(lang => (
-                  <option key={lang.id} value={lang.id}>{lang.name}</option>
-                ))}
-              </select>
+        {activeTab !== 'ai-visualizer' && (
+          <div id="right-pane" className="flex flex-col bg-surface border-l border-gray-200 overflow-hidden relative" style={{ width: `${100 - leftWidth}%` }}>
+            {/* Editor Header */}
+            <div className="flex items-center justify-between p-2 bg-surface border-b border-gray-200 shrink-0">
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedLangId}
+                  onChange={handleLangChange}
+                  className="bg-surface-gray border border-gray-300 text-text-main text-sm rounded-md focus:ring-primary focus:border-primary block pl-3 pr-10 py-1.5 font-medium cursor-pointer outline-none"
+                >
+                  {SUPPORTED_LANGUAGES.map(lang => (
+                    <option key={lang.id} value={lang.id}>{lang.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-1 text-text-muted">
+                <button
+                  onClick={handleResetCode}
+                  aria-label="Reset Code"
+                  className="p-1.5 hover:bg-surface-gray rounded transition-colors text-text-main hover:text-primary"
+                  title="Reset Code"
+                >
+                  <span className="material-symbols-outlined text-[20px]">refresh</span>
+                </button>
+              </div>
             </div>
-            <div className="flex gap-1 text-text-muted">
+
+            {/* Editor Area (Light theme with Monaco) */}
+            <div className="flex-grow overflow-hidden relative bg-white border-t border-gray-200">
+              <CodeEditor
+                language={LANGUAGE_KEYS[selectedLangId] || 'plaintext'}
+                value={LANGUAGE_KEYS[selectedLangId] ? codeByLang[LANGUAGE_KEYS[selectedLangId]] : ''}
+                onChange={handleCodeChange}
+              />
+            </div>
+
+            {/* Action Bar (Removed Run Code, kept Submit) */}
+            <div className="p-3 bg-surface border-t border-gray-200 flex justify-end gap-3 shrink-0">
               <button
-                onClick={handleResetCode}
-                aria-label="Reset Code"
-                className="p-1.5 hover:bg-surface-gray rounded transition-colors text-text-main hover:text-primary"
-                title="Reset Code"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="px-8 py-2 bg-brand-green hover:bg-[#3d8c38] text-white rounded-lg font-bold transition-colors shadow-sm text-sm active:scale-95 disabled:bg-gray-400 flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-[20px]">refresh</span>
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Submitting...
+                  </>
+                ) : (
+                  'Submit'
+                )}
               </button>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Editor Area (Light theme with Monaco) */}
-          <div className="flex-grow overflow-hidden relative bg-white border-t border-gray-200">
-            <CodeEditor
-              language={LANGUAGE_KEYS[selectedLangId] || 'plaintext'}
-              value={LANGUAGE_KEYS[selectedLangId] ? codeByLang[LANGUAGE_KEYS[selectedLangId]] : ''}
-              onChange={handleCodeChange}
-            />
-          </div>
-
-          {/* Action Bar (Removed Run Code, kept Submit) */}
-          <div className="p-3 bg-surface border-t border-gray-200 flex justify-end gap-3 shrink-0">
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-8 py-2 bg-brand-green hover:bg-[#3d8c38] text-white rounded-lg font-bold transition-colors shadow-sm text-sm active:scale-95 disabled:bg-gray-400 flex items-center justify-center gap-2"
+      {/* Maintenance Modal */}
+      {maintenanceError && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-fade-in border border-slate-200 text-center relative">
+            <button 
+              onClick={() => setMaintenanceError(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors bg-transparent border-none cursor-pointer"
             >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Submitting...
-                </>
-              ) : (
-                'Submit'
-              )}
+              <span className="material-symbols-outlined">close</span>
+            </button>
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+              <span className="material-symbols-outlined text-3xl">build</span>
+            </div>
+            <h3 className="text-xl font-display font-bold text-slate-800 mb-2">System Under Maintenance</h3>
+            <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+              The online judge system is currently under maintenance or temporarily unavailable. Please try submitting your code again in a few minutes. We apologize for the inconvenience!
+            </p>
+            <button
+              onClick={() => setMaintenanceError(false)}
+              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-2.5 rounded-lg transition-colors border-none cursor-pointer"
+            >
+              Got it
             </button>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

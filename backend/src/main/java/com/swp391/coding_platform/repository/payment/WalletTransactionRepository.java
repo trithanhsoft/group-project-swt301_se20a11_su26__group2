@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -18,6 +19,9 @@ public interface WalletTransactionRepository extends JpaRepository<WalletTransac
     List<WalletTransactionEntity> findByWalletIdOrderByCreatedAtDesc(Integer walletId);
     Page<WalletTransactionEntity> findByWalletUserId(Integer userId, Pageable pageable);
     Page<WalletTransactionEntity> findByWalletUserIdAndType(Integer userId, TransactionType type, Pageable pageable);
+    Page<WalletTransactionEntity> findByTypeAndStatusOrderByCreatedAtDesc(TransactionType type, StatusTransaction status, Pageable pageable);
+
+    Page<WalletTransactionEntity> findByTypeAndStatusAndCreatedAtBetweenOrderByCreatedAtDesc(TransactionType type, StatusTransaction status, Instant start, Instant end, Pageable pageable);
 
     @Query("SELECT wt FROM WalletTransactionEntity wt " +
            "JOIN FETCH wt.wallet w " +

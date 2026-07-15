@@ -255,16 +255,18 @@ public class ContestService {
     }
 
     @Transactional(readOnly = true)
-    public List<ContestProblemResponse> getContestProblems(Integer contestId, Integer userId) {
+    public List<ContestProblemResponse> getContestProblems(Integer contestId, Integer userId, boolean isAdmin) {
         if (userId == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
         var contest = contestRepository.findById(contestId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONTEST_NOT_FOUND));
 
-        boolean isRegistered = contestRepository.isUserRegistered(contestId, userId);
-        if (!isRegistered) {
-            throw new AppException(ErrorCode.CONTEST_NOT_JOINED);
+        if (!isAdmin) {
+            boolean isRegistered = contestRepository.isUserRegistered(contestId, userId);
+            if (!isRegistered) {
+                throw new AppException(ErrorCode.CONTEST_NOT_JOINED);
+            }
         }
         // Block access if contest has not started yet (UPCOMING)
         // ENDED is allowed: users can review problems after contest ends
@@ -296,9 +298,9 @@ public class ContestService {
 
             return ContestProblemResponse.builder()
                     .problemId(problem.getId())
-                    .title(problem.getTitle())
+                    .title(problem.getCurrentVersion().getTitle())
                     .orderIndex(cp.getOrderIndex())
-                    .difficulty(problem.getDifficulty() != null ? problem.getDifficulty().name() : "MEDIUM")
+                    .difficulty(problem.getCurrentVersion().getDifficulty() != null ? problem.getCurrentVersion().getDifficulty().name() : "MEDIUM")
                     .totalSubmission(problem.getTotalSubmission())
                     .totalAccepted(problem.getTotalAccepted())
                     .status(status)
@@ -510,6 +512,7 @@ public class ContestService {
         ContestProblemEntity cp = ContestProblemEntity.builder()
                 .contest(contest)
                 .problem(problem)
+                .problemVersion(problem.getCurrentVersion())
                 .orderIndex(request.getOrderIndex())
                 .build();
 
@@ -601,9 +604,10 @@ public class ContestService {
                     .id(s.getId())
                     .submittedAt(timeStr)
                     .username(s.getUser().getUsername())
+                    .displayName(s.getUser().getDisplayname() != null ? s.getUser().getDisplayname() : s.getUser().getUsername())
                     .problemLabel(label)
                     .problemId(s.getProblem().getId())
-                    .problemTitle(s.getProblem().getTitle())
+                    .problemTitle(s.getProblem().getCurrentVersion().getTitle())
                     .status(subStatus)
                     .lang(langStr)
                     .runtime(runtimeStr)
@@ -614,7 +618,7 @@ public class ContestService {
     }
 
     @Transactional(readOnly = true)
-    public ContestProblemDetailResponse getContestProblemDetail(Integer contestId, Integer problemId, Integer userId) {
+    public ContestProblemDetailResponse getContestProblemDetail(Integer contestId, Integer problemId, Integer userId, boolean isAdmin) {
         if (userId == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
@@ -623,9 +627,11 @@ public class ContestService {
                 .orElseThrow(() -> new AppException(ErrorCode.CONTEST_NOT_FOUND));
 
         // Verify user registration
-        boolean isRegistered = contestRepository.isUserRegistered(contestId, userId);
-        if (!isRegistered) {
-            throw new AppException(ErrorCode.CONTEST_NOT_JOINED);
+        if (!isAdmin) {
+            boolean isRegistered = contestRepository.isUserRegistered(contestId, userId);
+            if (!isRegistered) {
+                throw new AppException(ErrorCode.CONTEST_NOT_JOINED);
+            }
         }
 
         // Verify contest has started (throw 403 / CONTEST_NOT_STARTED if upcoming)
@@ -644,8 +650,15 @@ public class ContestService {
         List<ProblemTagMappingEntity> mappings = problemTagMappingRepository.findByProblemId(problemId);
         List<String> tags = mappings.stream().map(m -> m.getTag().getName()).toList();
 
-        Map<String, String> templates = generateTemplates(problem.getTitle());
-
+        Map<String, String> templates = new HashMap<>();
+        if (problem.getCurrentVersion().getStarterTemplates() != null && !problem.getCurrentVersion().getStarterTemplates().isBlank()) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                templates = objectMapper.readValue(problem.getCurrentVersion().getStarterTemplates(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+            } catch (Exception e) {
+                // Ignore parse errors
+            }
+        }
         String attemptStatus = "unsolved";
         String sourceCode = null;
         Integer languageId = null;
@@ -677,8 +690,8 @@ public class ContestService {
         }
 
         String difficultyStr = "Medium";
-        if (problem.getDifficulty() != null) {
-            String name = problem.getDifficulty().name();
+        if (problem.getCurrentVersion().getDifficulty() != null) {
+            String name = problem.getCurrentVersion().getDifficulty().name();
             difficultyStr = name.substring(0, 1).toUpperCase() + name.substring(1).toLowerCase();
         }
 
@@ -693,14 +706,14 @@ public class ContestService {
 
         return ContestProblemDetailResponse.builder()
                 .id(problem.getId())
-                .title(problem.getTitle())
+                .title(problem.getCurrentVersion().getTitle())
                 .difficulty(difficultyStr)
-                .description(problem.getDescription())
-                .inputDescription(problem.getInputDescription())
-                .outputDescription(problem.getOutputDescription())
-                .constraints(problem.getConstraints())
-                .exampleInput(problem.getExampleInput())
-                .exampleOutput(problem.getExampleOutput())
+                .description(problem.getCurrentVersion().getDescription())
+                .inputDescription(problem.getCurrentVersion().getInputDescription())
+                .outputDescription(problem.getCurrentVersion().getOutputDescription())
+                .constraints(problem.getCurrentVersion().getConstraints())
+                .exampleInput(problem.getCurrentVersion().getExampleInput())
+                .exampleOutput(problem.getCurrentVersion().getExampleOutput())
                 .tags(tags)
                 .templates(templates)
                 .status(attemptStatus)
@@ -709,37 +722,9 @@ public class ContestService {
                 .sourceCode(sourceCode)
                 .languageId(languageId)
                 .problemLabel(String.valueOf(labelChar))
-                .timeLimitMs(problem.getTimeLimitMs())
-                .memoryLimitKb(problem.getMemoryLimitKb())
+                .timeLimitMs(problem.getCurrentVersion().getTimeLimitMs())
+                .memoryLimitKb(problem.getCurrentVersion().getMemoryLimitKb())
                 .build();
-    }
-
-    private Map<String, String> generateTemplates(String title) {
-        Map<String, String> templates = new HashMap<>();
-        String cleanTitle = title != null ? title.trim().toLowerCase() : "";
-
-        if (cleanTitle.contains("two sum")) {
-            templates.put("Java", "class Solution {\n    public int[] twoSum(int[] nums, int target) {\n        // Write your code here\n        return new int[0];\n    }\n}");
-            templates.put("Python 3", "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        # Write your code here\n        return []");
-            templates.put("C++", "class Solution {\npublic:\n    vector<int> twoSum(vector<int>& nums, int target) {\n        // Write your code here\n        return {};\n    }\n};");
-            templates.put("JavaScript", "var twoSum = function(nums, target) {\n    // Write your code here\n    return [];\n};");
-        } else if (cleanTitle.contains("add two numbers")) {
-            templates.put("Java", "class Solution {\n    public ListNode addTwoNumbers(ListNode l1, ListNode l2) {\n        // Write your code here\n        return null;\n    }\n}");
-            templates.put("Python 3", "class Solution:\n    def addTwoNumbers(self, l1: Optional[ListNode], l2: Optional[ListNode]) -> Optional[ListNode]:\n        # Write your code here\n        return None");
-            templates.put("C++", "class Solution {\npublic:\n    ListNode* addTwoNumbers(ListNode* l1, ListNode* l2) {\n        // Write your code here\n        return nullptr;\n    }\n};");
-            templates.put("JavaScript", "var addTwoNumbers = function(l1, l2) {\n    // Write your code here\n    return null;\n};");
-        } else if (cleanTitle.contains("longest substring")) {
-            templates.put("Java", "class Solution {\n    public int lengthOfLongestSubstring(String s) {\n        // Write your code here\n        return 0;\n    }\n}");
-            templates.put("Python 3", "class Solution:\n    def lengthOfLongestSubstring(self, s: str) -> int:\n        # Write your code here\n        return 0");
-            templates.put("C++", "class Solution {\npublic:\n    int lengthOfLongestSubstring(string s) {\n        // Write your code here\n        return 0;\n    }\n};");
-            templates.put("JavaScript", "var lengthOfLongestSubstring = function(s) {\n    // Write your code here\n    return 0;\n};");
-        } else {
-            templates.put("Java", "class Solution {\n    public void solve() {\n        // Write your code here\n    }\n}");
-            templates.put("Python 3", "class Solution:\n    def solve(self):\n        # Write your code here\n        pass");
-            templates.put("C++", "class Solution {\npublic:\n    void solve() {\n        // Write your code here\n    }\n};");
-            templates.put("JavaScript", "var solve = function() {\n    // Write your code here\n};");
-        }
-        return templates;
     }
 
     @Transactional(readOnly = true)

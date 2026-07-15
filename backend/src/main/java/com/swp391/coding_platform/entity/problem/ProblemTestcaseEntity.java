@@ -19,8 +19,8 @@ public class ProblemTestcaseEntity {
     Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "problem_id", nullable = false)
-    ProblemEntity problem;
+    @JoinColumn(name = "problem_version_id", nullable = false)
+    ProblemVersionEntity problemVersion;
 
     @Column(name = "input_data", nullable = false, columnDefinition = "TEXT")
     String inputData;

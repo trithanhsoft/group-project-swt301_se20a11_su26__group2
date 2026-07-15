@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { fetchCourseLearningDetail, fetchCourseLearningCurriculum, completeLesson, type LearningCurriculumChapterResponse } from '../../services/courseService';
+import { getYoutubeEmbedUrl, isYoutubeUrl, getOptimizedVideoUrl } from '../../utils/videoUtils';
 
 export const useCourseLearning = () => {
   const [playerCourseId, setPlayerCourseId] = useState<number | null>(null);
@@ -48,15 +49,7 @@ export const useCourseLearning = () => {
     }
   }, [refreshLearningProgress]);
 
-  const getYoutubeEmbedUrl = useCallback((url?: string) => {
-    if (!url) return '';
-    const regExp = new RegExp('^.*(youtu.be/|v/|u/\\w/|embed/|watch\\?v=|&v=)([^#&\\?]*).*');
-    const match = url.match(regExp);
-    if (match && match[2].length === 11) {
-      return `https://www.youtube.com/embed/${match[2]}`;
-    }
-    return url;
-  }, []);
+  // getYoutubeEmbedUrl is now imported from utils/videoUtils.ts
 
   return {
     playerCourseId,
@@ -87,7 +80,9 @@ export const useCourseLearning = () => {
     setCurriculumSections,
     handleCompleteLesson,
     refreshLearningProgress,
-    getYoutubeEmbedUrl
+    getYoutubeEmbedUrl,
+    isYoutubeUrl,
+    getOptimizedVideoUrl
   };
 };
 

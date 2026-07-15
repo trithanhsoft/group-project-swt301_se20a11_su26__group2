@@ -430,47 +430,57 @@ public class InstructorCourseService {
                                     problemEntity.setProblemScope(com.swp391.coding_platform.entity.enums.ProblemScope.LESSON);
                                 }
 
-                                problemEntity.setTitle(exDto.getTitle());
-                                problemEntity.setDescription(exDto.getDescription() != null ? exDto.getDescription() : "");
-                                try {
-                                    problemEntity.setDifficulty(exDto.getDifficulty() != null ? com.swp391.coding_platform.entity.enums.ProblemDifficulty.valueOf(exDto.getDifficulty().toUpperCase()) : com.swp391.coding_platform.entity.enums.ProblemDifficulty.MEDIUM);
-                                } catch (Exception e) {
-                                    problemEntity.setDifficulty(com.swp391.coding_platform.entity.enums.ProblemDifficulty.MEDIUM);
+                                com.swp391.coding_platform.entity.problem.ProblemVersionEntity version = problemEntity.getCurrentVersion();
+                                if (version == null) {
+                                    version = new com.swp391.coding_platform.entity.problem.ProblemVersionEntity();
+                                    version.setProblem(problemEntity);
+                                    version.setVersionNumber(1);
+                                    version.setCreatedAt(java.time.Instant.now());
+                                    version.setProblemScope(com.swp391.coding_platform.entity.enums.ProblemScope.LESSON);
+                                    version.setIsPublic(false);
+                                    problemEntity.setCurrentVersion(version);
                                 }
-                                problemEntity.setInputDescription(exDto.getInputDesc());
-                                problemEntity.setOutputDescription(exDto.getOutputDesc());
-                                problemEntity.setConstraints(exDto.getConstraints());
-                                problemEntity.setExampleInput(exDto.getExampleInput());
-                                problemEntity.setExampleOutput(exDto.getExampleOutput());
-                                problemEntity.setHint(exDto.getHint());
+                                problemEntity.getCurrentVersion().setTitle(exDto.getTitle());
+                                problemEntity.getCurrentVersion().setDescription(exDto.getDescription() != null ? exDto.getDescription() : "");
+                                try {
+                                    problemEntity.getCurrentVersion().setDifficulty(exDto.getDifficulty() != null ? com.swp391.coding_platform.entity.enums.ProblemDifficulty.valueOf(exDto.getDifficulty().toUpperCase()) : com.swp391.coding_platform.entity.enums.ProblemDifficulty.MEDIUM);
+                                } catch (Exception e) {
+                                    problemEntity.getCurrentVersion().setDifficulty(com.swp391.coding_platform.entity.enums.ProblemDifficulty.MEDIUM);
+                                }
+                                problemEntity.getCurrentVersion().setInputDescription(exDto.getInputDesc());
+                                problemEntity.getCurrentVersion().setOutputDescription(exDto.getOutputDesc());
+                                problemEntity.getCurrentVersion().setConstraints(exDto.getConstraints());
+                                problemEntity.getCurrentVersion().setExampleInput(exDto.getExampleInput());
+                                problemEntity.getCurrentVersion().setExampleOutput(exDto.getExampleOutput());
+                                problemEntity.getCurrentVersion().setHint(exDto.getHint());
                                 problemEntity.setScore(exDto.getScore() != null ? BigDecimal.valueOf(exDto.getScore()) : new BigDecimal("100.00"));
-                                problemEntity.setTimeLimitMs(exDto.getTimeLimit() != null ? exDto.getTimeLimit() : 2000);
-                                problemEntity.setMemoryLimitKb(exDto.getMemoryLimit() != null ? exDto.getMemoryLimit() : 128000);
-                                problemEntity.setStarterTemplates(exDto.getInitialCode());
-                                problemEntity.setSolutions(exDto.getSolutionCode());
+                                problemEntity.getCurrentVersion().setTimeLimitMs(exDto.getTimeLimit() != null ? exDto.getTimeLimit() : 2000);
+                                problemEntity.getCurrentVersion().setMemoryLimitKb(exDto.getMemoryLimit() != null ? exDto.getMemoryLimit() : 128000);
+                                problemEntity.getCurrentVersion().setStarterTemplates(exDto.getInitialCode());
+                                problemEntity.getCurrentVersion().setSolutions(exDto.getSolutionCode());
                                 problemEntity.setUpdatedAt(Instant.now());
 
                                 // Process testcases
-                                if (problemEntity.getTestcases() == null) {
-                                    problemEntity.setTestcases(new java.util.ArrayList<>());
+                                if (problemEntity.getCurrentVersion().getTestcases() == null) {
+                                    problemEntity.getCurrentVersion().setTestcases(new java.util.ArrayList<>());
                                 }
-                                problemEntity.getTestcases().clear();
+                                problemEntity.getCurrentVersion().getTestcases().clear();
                                 if (exDto.getTestCases() != null) {
                                     for (int tIdx = 0; tIdx < exDto.getTestCases().size(); tIdx++) {
                                         var tDto = exDto.getTestCases().get(tIdx);
                                         com.swp391.coding_platform.entity.problem.ProblemTestcaseEntity tEntity = new com.swp391.coding_platform.entity.problem.ProblemTestcaseEntity();
-                                        tEntity.setProblem(problemEntity);
+                                        tEntity.setProblemVersion(problemEntity.getCurrentVersion());
                                         tEntity.setInputData(tDto.getInput() != null ? tDto.getInput() : "");
                                         tEntity.setExpectedOutput(tDto.getOutput() != null ? tDto.getOutput() : "");
                                         tEntity.setOrderIndex(tIdx + 1);
-                                        problemEntity.getTestcases().add(tEntity);
+                                        problemEntity.getCurrentVersion().getTestcases().add(tEntity);
                                     }
                                 }
-                                problemEntity.setTotalTestcase(problemEntity.getTestcases().size());
+                                problemEntity.setTotalTestcase(problemEntity.getCurrentVersion().getTestcases().size());
 
                                 problemEntity = problemRepository.save(problemEntity);
 
-                                lpEntity.setProblem(problemEntity);
+                                lpEntity.setProblemVersion(problemEntity.getCurrentVersion());
                                 lpEntity.setOrderIndex(k + 1);
 
                                 updatedExercises.add(lpEntity);

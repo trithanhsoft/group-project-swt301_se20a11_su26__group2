@@ -2,9 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { problemService } from '../services/problemService';
 import type { ProblemListItem } from '../services/problemService';
+import { useApp } from '../context/AppContext';
 
 export const Problems: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useApp();
 
   // State controls for filtering and searching
   const [problems, setProblems] = useState<ProblemListItem[]>([]);
@@ -340,7 +342,13 @@ export const Problems: React.FC = () => {
               {paginatedProblems.map((prob) => (
                 <tr
                   key={prob.id}
-                  onClick={() => navigate(`/problems/${prob.id}`)}
+                  onClick={() => {
+                    if (!user) {
+                      navigate('/login');
+                    } else {
+                      navigate(`/problems/${prob.id}`);
+                    }
+                  }}
                   className="hover:bg-surface-gray/50 transition-colors group cursor-pointer"
                 >
                   <td className="p-4 pl-6 text-center">
@@ -357,7 +365,7 @@ export const Problems: React.FC = () => {
                   </td>
                   <td className="p-4">
                     <Link
-                      to={`/problems/${prob.id}`}
+                      to={!user ? '/login' : `/problems/${prob.id}`}
                       onClick={(e) => e.stopPropagation()}
                       className="font-bold text-text-main group-hover:text-primary transition-colors"
                     >

@@ -137,28 +137,11 @@ public class ContestRankingService {
         String liveScoreboardKey = "contest:scoreboard:" + contestId + ":live";
         stringRedisTemplate.opsForZSet().add(liveScoreboardKey, String.valueOf(userId), zsetScore);
 
-        // Xử lý Contest Freeze (Đóng băng bảng điểm khi còn 15% thời gian cuối)
-        Instant endTime = contest.getEndTime();
-        Instant startTime = contest.getStartTime();
-        long totalDurationSeconds = Duration.between(startTime, endTime).getSeconds();
-        long freezeDurationSeconds = totalDurationSeconds * 15 / 100;
-        Instant freezeTime = endTime.minus(Duration.ofSeconds(freezeDurationSeconds));
-
+        // Xử lý Contest (Đóng băng bảng điểm đã được bỏ, cập nhật luôn public và live)
         String publicScoreboardKey = "contest:scoreboard:" + contestId + ":public";
-        if (submitTime.isBefore(freezeTime)) {
-            // Nếu nộp trước thời gian đóng băng, cập nhật ZSET Public Scoreboard và cả Public Hash
-            stringRedisTemplate.opsForZSet().add(publicScoreboardKey, String.valueOf(userId), zsetScore);
-            stringRedisTemplate.opsForHash().put(publicHashKey, field, newStatus);
-            log.info("Updated public status and scoreboard for user {} on problem {} (before freeze)", userId, problemId);
-        } else {
-            // Nếu nộp trong thời gian đóng băng, KHÔNG cập nhật public scoreboard/hash mới, nhưng ZADD người mới vào nếu chưa có
-            // để họ hiển thị ở trạng thái ban đầu của lúc trước freeze
-            Double existingPublicScore = stringRedisTemplate.opsForZSet().score(publicScoreboardKey, String.valueOf(userId));
-            if (existingPublicScore == null) {
-                double defaultScore = (double) baseScore;
-                stringRedisTemplate.opsForZSet().add(publicScoreboardKey, String.valueOf(userId), defaultScore);
-            }
-        }
+        stringRedisTemplate.opsForZSet().add(publicScoreboardKey, String.valueOf(userId), zsetScore);
+        stringRedisTemplate.opsForHash().put(publicHashKey, field, newStatus);
+        log.info("Updated public status and scoreboard for user {} on problem {}", userId, problemId);
 
         // ==========================================
         // PERSIST RANKING TO DATABASE (Lưu xuống DB để không mất khi Redis restart)

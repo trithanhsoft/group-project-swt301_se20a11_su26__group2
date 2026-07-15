@@ -75,6 +75,7 @@ public enum ErrorCode {
     TESTCASE_NOT_FOUND(6001, "Testcase not found", HttpStatus.NOT_FOUND),
     SUBMISSION_NOT_FOUND(6002, "Submission not found", HttpStatus.NOT_FOUND),
     OJ_SOLUTION_LOCKED(6003, "Solution is locked. You must solve the problem first.", HttpStatus.FORBIDDEN),
+    OJ_PROBLEM_MISSING_TESTCASE(6004, "Problem must have at least one testcase to be public", HttpStatus.BAD_REQUEST),
     OJ_SUBMISSION_FAILED(6304, "Online judge submission failed", HttpStatus.BAD_GATEWAY),
     JUDGE0_SUBMISSION_FAILED(6308, "Judge0 submission failed", HttpStatus.BAD_GATEWAY),
     OJ_PROBLEM_ID_REQUIRED(6305, "Problem ID is required", HttpStatus.BAD_REQUEST),

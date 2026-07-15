@@ -78,7 +78,7 @@ export const ContestProblems: React.FC = () => {
           </div>
           <h3 className="font-display font-black text-xl text-brand-blue">Arena Locked</h3>
           <p className="font-body text-sm text-text-muted">
-            You must register for this contest first to view and solve the problems. Use the registration panel on the right sidebar.
+            You must register for this contest first to view and solve the problems. Use the registration panel on the sidebar.
           </p>
         </div>
       </main>

@@ -49,7 +49,7 @@ public class DashboardController {
     @GetMapping("/activities")
     public ResponseEntity<ApiResponse<UserActivityResponse>> getUserActivities(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(required = true) Integer year) {
+            @RequestParam(value = "year", required = true) Integer year) {
 
         Integer userId = null;
         if(jwt != null){

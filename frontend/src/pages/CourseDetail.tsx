@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { fetchCourseDetail, fetchCourseCurriculum, fetchCourseReviews, submitCourseReview, type CourseDetailResponse, type CurriculumChapterResponse, type CourseReviewStatsResponse } from '../services/courseService';
+import { getOptimizedVideoUrl } from '../utils/videoUtils';
 
 export const CourseDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -231,9 +232,12 @@ export const CourseDetail: React.FC = () => {
             ) : (
               <video 
                 className="w-full h-full object-contain bg-black"
-                src={previewVideoUrl}
+                src={getOptimizedVideoUrl(previewVideoUrl)}
                 controls
                 autoPlay
+                preload="metadata"
+                controlsList="nodownload"
+                playsInline
               >
                 Your browser does not support the video tag.
               </video>
@@ -721,7 +725,7 @@ export const CourseDetail: React.FC = () => {
                 <div className="space-y-3 mb-6">
                   {course.enrolled ? (
                     <button
-                      onClick={() => navigate('/dashboard')}
+                      onClick={() => navigate(`/dashboard#learning-view?courseId=${course.id}`)}
                       className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-white text-center font-bold rounded-xl shadow-md cursor-pointer hover:bg-primary-hover transition-all font-body"
                     >
                       <span>Continue Learning</span>

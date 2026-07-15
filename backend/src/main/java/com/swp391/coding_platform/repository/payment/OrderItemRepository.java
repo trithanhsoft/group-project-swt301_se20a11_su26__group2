@@ -2,10 +2,14 @@ package com.swp391.coding_platform.repository.payment;
 
 import com.swp391.coding_platform.entity.enums.OrderStatus;
 import com.swp391.coding_platform.entity.payment.OrderItemEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import java.time.Instant;
 import java.util.List;
 
 @Repository
@@ -26,6 +30,9 @@ public interface OrderItemRepository extends JpaRepository<OrderItemEntity, Inte
            "WHERE o.status = 'COMPLETED'")
     List<OrderItemEntity> findAllCompletedOrderItemsWithDetails();
 
+    Page<OrderItemEntity> findByOrderStatusOrderByOrderCreatedAtDesc(OrderStatus status, Pageable pageable);
+
+    Page<OrderItemEntity> findByOrderStatusAndOrderCreatedAtBetweenOrderByOrderCreatedAtDesc(OrderStatus status, Instant start, Instant end, Pageable pageable);
     @Query("SELECT oi FROM OrderItemEntity oi " +
            "JOIN FETCH oi.order o " +
            "JOIN FETCH oi.course c " +

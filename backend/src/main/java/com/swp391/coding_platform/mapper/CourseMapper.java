@@ -55,9 +55,9 @@ public interface CourseMapper {
     LearningLessonResponse toLearningLessonResponse(LessonEntity lessonEntity);
 
     @Mapping(target = "id", source = "problem.id")
-    @Mapping(target = "name", source = "problem.title")
-    @Mapping(target = "difficulty", source = "problem.difficulty")
-    @Mapping(target = "difficultyClass", expression = "java(lessonProblemEntity.getProblem().getDifficulty() != null ? (lessonProblemEntity.getProblem().getDifficulty().name().equals(\"EASY\") ? \"bg-green-100 text-green-700 border-green-200\" : lessonProblemEntity.getProblem().getDifficulty().name().equals(\"MEDIUM\") ? \"bg-yellow-100 text-yellow-700 border-yellow-200\" : \"bg-red-100 text-red-700 border-red-200\") : \"bg-gray-100 text-gray-700\")")
+    @Mapping(target = "name", source = "problemVersion.title")
+    @Mapping(target = "difficulty", source = "problemVersion.difficulty")
+    @Mapping(target = "difficultyClass", expression = "java(lessonProblemEntity.getProblemVersion().getDifficulty() != null ? (lessonProblemEntity.getProblemVersion().getDifficulty().name().equals(\"EASY\") ? \"bg-green-100 text-green-700 border-green-200\" : lessonProblemEntity.getProblemVersion().getDifficulty().name().equals(\"MEDIUM\") ? \"bg-yellow-100 text-yellow-700 border-yellow-200\" : \"bg-red-100 text-red-700 border-red-200\") : \"bg-gray-100 text-gray-700\")")
     @Mapping(target = "submissions", source = "problem.totalSubmission")
     @Mapping(target = "completed", constant = "false")
     LearningExerciseResponse toLearningExerciseResponse(com.swp391.coding_platform.entity.course.LessonProblemEntity lessonProblemEntity);
@@ -74,21 +74,21 @@ public interface CourseMapper {
     com.swp391.coding_platform.dto.response.InstructorLessonResponse toInstructorLessonResponse(LessonEntity lessonEntity);
 
     @Mapping(target = "id", source = "problem.id")
-    @Mapping(target = "title", source = "problem.title")
-    @Mapping(target = "difficulty", source = "problem.difficulty")
-    @Mapping(target = "description", source = "problem.description")
-    @Mapping(target = "inputDesc", source = "problem.inputDescription")
-    @Mapping(target = "outputDesc", source = "problem.outputDescription")
-    @Mapping(target = "constraints", source = "problem.constraints")
-    @Mapping(target = "exampleInput", source = "problem.exampleInput")
-    @Mapping(target = "exampleOutput", source = "problem.exampleOutput")
-    @Mapping(target = "hint", source = "problem.hint")
+    @Mapping(target = "title", source = "problemVersion.title")
+    @Mapping(target = "difficulty", source = "problemVersion.difficulty")
+    @Mapping(target = "description", source = "problemVersion.description")
+    @Mapping(target = "inputDesc", source = "problemVersion.inputDescription")
+    @Mapping(target = "outputDesc", source = "problemVersion.outputDescription")
+    @Mapping(target = "constraints", source = "problemVersion.constraints")
+    @Mapping(target = "exampleInput", source = "problemVersion.exampleInput")
+    @Mapping(target = "exampleOutput", source = "problemVersion.exampleOutput")
+    @Mapping(target = "hint", source = "problemVersion.hint")
     @Mapping(target = "score", expression = "java(lessonProblemEntity.getProblem().getScore() != null ? lessonProblemEntity.getProblem().getScore().intValue() : 100)")
-    @Mapping(target = "timeLimit", source = "problem.timeLimitMs")
-    @Mapping(target = "memoryLimit", source = "problem.memoryLimitKb")
-    @Mapping(target = "initialCode", source = "problem.starterTemplates")
-    @Mapping(target = "solutionCode", source = "problem.solutions")
-    @Mapping(target = "testCases", source = "problem.testcases")
+    @Mapping(target = "timeLimit", source = "problemVersion.timeLimitMs")
+    @Mapping(target = "memoryLimit", source = "problemVersion.memoryLimitKb")
+    @Mapping(target = "initialCode", source = "problemVersion.starterTemplates")
+    @Mapping(target = "solutionCode", source = "problemVersion.solutions")
+    @Mapping(target = "testCases", source = "problemVersion.testcases")
     com.swp391.coding_platform.dto.response.InstructorExerciseResponse toInstructorExerciseResponse(com.swp391.coding_platform.entity.course.LessonProblemEntity lessonProblemEntity);
 
     @Mapping(target = "input", source = "inputData")

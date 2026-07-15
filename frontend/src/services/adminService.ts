@@ -109,6 +109,16 @@ export interface OrderDetails {
   date: string;
 }
 
+export interface PayoutDetails {
+  id: string;
+  instructorName: string;
+  instructorEmail: string;
+  amount: number;
+  bankAccount: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED';
+  date: string;
+}
+
 export interface AwardDetails {
   id: string;
   userName: string;
@@ -212,6 +222,17 @@ export interface AdminUser {
   lockAppeal?: string;
 }
 
+export interface PageResponse<T> {
+  page: number;
+  size: number;
+  numberOfElements: number;
+  totalElements: number;
+  totalPages: number;
+  first: boolean;
+  last: boolean;
+  content: T[];
+}
+
 export interface AdminProblem {
   id: number;
   title: string;
@@ -235,6 +256,7 @@ export interface AdminProblem {
   solutions?: string;
   totalSubmissions: number;
   acceptedSubmissions: number;
+  isDeleted: boolean;
   tags?: string[];
   starterTemplates?: Record<string, string>;
 }
@@ -625,6 +647,23 @@ let mockActivityLogs: ActivityLog[] = [
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export const adminService = {
+  cloneProblem: async (problemId: number) => {
+    try {
+      const response = await fetchWithAutoRefresh(`${BASE_URL}/admin/problems/${problemId}/clone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include' // or 'include' based on authentication mechanism, let's use default if omitted
+      });
+      if (!response.ok) {
+        throw new Error('Failed to clone problem');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error cloning problem:', error);
+      throw error;
+    }
+  },
+
   // Statistics
   async getDashboardStats(): Promise<AdminDashboardStats> {
     try {
@@ -769,7 +808,6 @@ export const adminService = {
         rating: 5.0,
         studentsCount: 0
       });
-
     }
     // Add log
     mockActivityLogs.unshift({
@@ -965,6 +1003,30 @@ export const adminService = {
     if (!response.ok) {
       throw new Error('Failed to delete problem');
     }
+  },
+
+  async getProblemVersions(problemId: number): Promise<any[]> {
+    const response = await fetchWithAutoRefresh(`${BASE_URL}/admin/problems/${problemId}/versions`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to fetch problem versions');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async rollbackProblemVersion(problemId: number, versionId: number): Promise<any> {
+    const response = await fetchWithAutoRefresh(`${BASE_URL}/admin/problems/${problemId}/rollback/${versionId}`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error('Failed to rollback problem version');
+    }
+    const data = await response.json();
+    return data.result;
   },
 
   async getTags(): Promise<{ id: number; name: string; slug: string }[]> {
@@ -1217,6 +1279,54 @@ export const adminService = {
     const response = await fetch(`${BASE_URL}/admin/financial/details`, { credentials: 'include' });
     if (!response.ok) {
       throw new Error('Failed to fetch financial audit details');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async getFinancialOrders(page: number, limit: number, startDate?: string, endDate?: string): Promise<PageResponse<OrderDetails>> {
+    let url = `${BASE_URL}/admin/financial/orders?page=${page}&limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error('Failed to fetch financial orders');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async getFinancialAwards(page: number, limit: number, startDate?: string, endDate?: string): Promise<PageResponse<AwardDetails>> {
+    let url = `${BASE_URL}/admin/financial/awards?page=${page}&limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error('Failed to fetch financial awards');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async getFinancialSales(page: number, limit: number, startDate?: string, endDate?: string): Promise<PageResponse<SaleDetails>> {
+    let url = `${BASE_URL}/admin/financial/sales?page=${page}&limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error('Failed to fetch financial sales');
+    }
+    const data = await response.json();
+    return data.result;
+  },
+
+  async getFinancialPayouts(page: number = 1, size: number = 10, startDate?: string, endDate?: string): Promise<PageResponse<PayoutDetails>> {
+    let url = `${BASE_URL}/admin/financial/payouts?page=${page}&limit=${size}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    const response = await fetch(url, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error('Failed to fetch financial payouts');
     }
     const data = await response.json();
     return data.result;

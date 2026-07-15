@@ -6,15 +6,17 @@ import com.swp391.coding_platform.dto.response.AdminProblemResponse;
 import com.swp391.coding_platform.dto.response.AdminTestcaseResponse;
 import com.swp391.coding_platform.dto.response.ApiResponse;
 import com.swp391.coding_platform.dto.response.ProblemTagResponse;
-import com.swp391.coding_platform.service.problem.ProblemService;
-import jakarta.validation.Valid;
+import com.swp391.coding_platform.service.problem.AdminProblemService;
+import com.swp391.coding_platform.service.problem.UserProblemService;
+import com.swp391.coding_platform.service.problem.ProblemTestcaseService;
+import com.swp391.coding_platform.service.problem.ProblemTagService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,7 +24,6 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 @RestController
 @RequestMapping("/admin/problems")
 @RequiredArgsConstructor
@@ -30,11 +31,14 @@ import java.util.Map;
 @PreAuthorize("hasAuthority('ROLE_ADMIN')")
 public class AdminProblemController {
 
-    ProblemService problemService;
+    AdminProblemService adminProblemService;
+    ProblemTagService problemTagService;
+    ProblemTestcaseService problemTestcaseService;
+    UserProblemService userProblemService;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<AdminProblemResponse>>> getProblems() {
-        List<AdminProblemResponse> result = problemService.getAdminProblems();
+        List<AdminProblemResponse> result = adminProblemService.getAdminProblems();
         return ResponseEntity.ok(ApiResponse.<List<AdminProblemResponse>>builder()
                 .status(200)
                 .code(1000)
@@ -46,11 +50,11 @@ public class AdminProblemController {
 
     @GetMapping("/tags")
     public ResponseEntity<ApiResponse<List<ProblemTagResponse>>> getAllTags() {
-        List<ProblemTagResponse> result = problemService.getAllTags();
+        List<ProblemTagResponse> result = problemTagService.getAllTags();
         return ResponseEntity.ok(ApiResponse.<List<ProblemTagResponse>>builder()
                 .status(200)
                 .code(1000)
-                .message("Fetched tags successfully")
+                .message("Fetched all tags successfully")
                 .result(result)
                 .timestamp(Instant.now().toString())
                 .build());
@@ -58,22 +62,13 @@ public class AdminProblemController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<AdminProblemResponse>> createProblem(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody AdminProblemRequest request) {
+            @RequestBody AdminProblemRequest request) {
 
-        Integer adminUserId = null;
-        if (jwt != null) {
-            Number idClaim = jwt.getClaim("userId");
-            if (idClaim != null) {
-                adminUserId = idClaim.intValue();
-            }
-        }
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Integer adminUserId = Math.toIntExact(jwt.getClaim("userId"));
 
-        if (adminUserId == null) {
-            return ResponseEntity.status(401).build();
-        }
-
-        AdminProblemResponse result = problemService.createAdminProblem(request, adminUserId);
+        AdminProblemResponse result = adminProblemService.createAdminProblem(request, adminUserId);
         return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
                 .status(200)
                 .code(1000)
@@ -86,9 +81,9 @@ public class AdminProblemController {
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<AdminProblemResponse>> updateProblem(
             @PathVariable Integer id,
-            @Valid @RequestBody AdminProblemRequest request) {
+            @RequestBody AdminProblemRequest request) {
 
-        AdminProblemResponse result = problemService.updateAdminProblem(id, request);
+        AdminProblemResponse result = adminProblemService.updateAdminProblem(id, request);
         return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
                 .status(200)
                 .code(1000)
@@ -100,7 +95,7 @@ public class AdminProblemController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteProblem(@PathVariable Integer id) {
-        problemService.deleteAdminProblem(id);
+        adminProblemService.deleteAdminProblem(id);
         return ResponseEntity.ok(ApiResponse.<Void>builder()
                 .status(200)
                 .code(1000)
@@ -115,7 +110,7 @@ public class AdminProblemController {
             @RequestBody Map<String, String> body) {
 
         String problemScope = body.get("problemScope");
-        AdminProblemResponse result = problemService.updateAdminProblemScope(id, problemScope);
+        AdminProblemResponse result = adminProblemService.updateAdminProblemScope(id, problemScope);
         return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
                 .status(200)
                 .code(1000)
@@ -131,11 +126,25 @@ public class AdminProblemController {
             @RequestBody Map<String, Boolean> body) {
 
         Boolean isPublic = body.get("isPublic");
-        AdminProblemResponse result = problemService.updateAdminProblemPublicStatus(id, isPublic);
+        AdminProblemResponse result = adminProblemService.updateAdminProblemPublicStatus(id, isPublic);
         return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
                 .status(200)
                 .code(1000)
                 .message("Updated problem public status successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+    @PostMapping("/{id}/rollback/{versionId}")
+    public ResponseEntity<ApiResponse<AdminProblemResponse>> rollbackProblem(
+            @PathVariable Integer id,
+            @PathVariable Integer versionId) {
+
+        AdminProblemResponse result = adminProblemService.rollbackAdminProblem(id, versionId);
+        return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
+                .status(200)
+                .code(1000)
+                .message("Problem rolled back successfully")
                 .result(result)
                 .timestamp(Instant.now().toString())
                 .build());
@@ -147,7 +156,7 @@ public class AdminProblemController {
             @RequestBody Map<String, Integer> body) {
 
         Integer totalTestcases = body.get("totalTestcases");
-        AdminProblemResponse result = problemService.activateAdminProblem(id, totalTestcases);
+        AdminProblemResponse result = adminProblemService.activateAdminProblem(id, totalTestcases);
         return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
                 .status(200)
                 .code(1000)
@@ -160,11 +169,12 @@ public class AdminProblemController {
     @GetMapping("/{id}/testcases")
     public ResponseEntity<ApiResponse<List<AdminTestcaseResponse>>> getProblemTestcases(
             @PathVariable Integer id) {
-        List<AdminTestcaseResponse> result = problemService.getProblemTestcases(id);
+
+        List<AdminTestcaseResponse> result = problemTestcaseService.getProblemTestcases(id);
         return ResponseEntity.ok(ApiResponse.<List<AdminTestcaseResponse>>builder()
                 .status(200)
                 .code(1000)
-                .message("Fetched testcases successfully")
+                .message("Fetched problem testcases successfully")
                 .result(result)
                 .timestamp(Instant.now().toString())
                 .build());
@@ -173,14 +183,46 @@ public class AdminProblemController {
     @PostMapping("/{id}/testcases")
     public ResponseEntity<ApiResponse<List<AdminTestcaseResponse>>> saveProblemTestcases(
             @PathVariable Integer id,
-            @Valid @RequestBody List<AdminTestcaseRequest> requests) {
-        List<AdminTestcaseResponse> result = problemService.saveProblemTestcases(id, requests);
+            @RequestBody List<AdminTestcaseRequest> requests) {
+
+        List<AdminTestcaseResponse> result = problemTestcaseService.saveProblemTestcases(id, requests);
         return ResponseEntity.ok(ApiResponse.<List<AdminTestcaseResponse>>builder()
                 .status(200)
                 .code(1000)
-                .message("Saved testcases successfully")
+                .message("Saved problem testcases successfully")
                 .result(result)
                 .timestamp(Instant.now().toString())
+                .build());
+    }
+
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<ApiResponse<List<com.swp391.coding_platform.dto.response.ProblemVersionResponse>>> getProblemVersions(
+            @PathVariable Integer id) {
+
+        List<com.swp391.coding_platform.dto.response.ProblemVersionResponse> result = adminProblemService.getProblemVersions(id);
+        return ResponseEntity.ok(ApiResponse.<List<com.swp391.coding_platform.dto.response.ProblemVersionResponse>>builder()
+                .status(200)
+                .code(1000)
+                .message("Fetched problem versions successfully")
+                .result(result)
+                .timestamp(Instant.now().toString())
+                .build());
+    }
+
+
+    @PostMapping("/{id}/clone")
+    public ResponseEntity<ApiResponse<AdminProblemResponse>> cloneProblem(
+            @PathVariable Integer id) {
+        
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        Jwt jwt = (Jwt) authentication.getPrincipal();
+        Integer adminUserId = Math.toIntExact(jwt.getClaim("userId"));
+
+        AdminProblemResponse response = adminProblemService.cloneProblem(id, adminUserId);
+        return ResponseEntity.ok(ApiResponse.<AdminProblemResponse>builder()
+                .status(200)
+                .message("Problem cloned successfully")
+                .result(response)
                 .build());
     }
 }

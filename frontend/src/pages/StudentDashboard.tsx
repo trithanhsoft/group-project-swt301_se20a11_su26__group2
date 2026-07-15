@@ -24,6 +24,7 @@ import {
   type MyContestStats,
   type MyContestHistory
 } from '../services/contestService';
+import { isYoutubeUrl, getYoutubeEmbedUrl, getOptimizedVideoUrl } from '../utils/videoUtils';
 
 
 const TX_TYPE_OPTIONS = [
@@ -230,15 +231,7 @@ export const StudentDashboard: React.FC = () => {
     sec3: false
   });
 
-  const getYoutubeEmbedUrl = (url?: string) => {
-    if (!url) return '';
-    const regExp = new RegExp('^.*(youtu.be/|v/|u/\\w/|embed/|watch\\?v=|&v=)([^#&\\?]*).*');
-    const match = url.match(regExp);
-    if (match && match[2].length === 11) {
-      return `https://www.youtube.com/embed/${match[2]}`;
-    }
-    return url;
-  };
+  // Video URL helpers are now centralized in ../utils/videoUtils.ts
 
   // Exercises panel inside Course Player
   const [playerExercises, setPlayerExercises] = useState<any[]>([]);
@@ -1849,13 +1842,24 @@ export const StudentDashboard: React.FC = () => {
                       </div>
                     </div>
                   ) : playerVideoUrl ? (
-                    <iframe
-                      className="w-full h-full border-none rounded-2xl aspect-video"
-                      src={getYoutubeEmbedUrl(playerVideoUrl)}
-                      title="Lesson Video Player"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    ></iframe>
+                    isYoutubeUrl(playerVideoUrl) ? (
+                      <iframe
+                        className="w-full h-full border-none rounded-2xl aspect-video"
+                        src={getYoutubeEmbedUrl(playerVideoUrl)}
+                        title="Lesson Video Player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      ></iframe>
+                    ) : (
+                      <video
+                        className="w-full h-full rounded-2xl aspect-video object-contain bg-black"
+                        src={getOptimizedVideoUrl(playerVideoUrl)}
+                        controls
+                        preload="metadata"
+                        controlsList="nodownload"
+                        playsInline
+                      />
+                    )
                   ) : (
                     <>
                       <img src={playerVideoThumbnail} alt="Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-30" />

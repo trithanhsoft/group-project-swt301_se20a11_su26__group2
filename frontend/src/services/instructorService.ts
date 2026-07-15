@@ -191,7 +191,8 @@ export const instructorService = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create course');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || 'Failed to create course');
     }
 
     const data = await response.json();

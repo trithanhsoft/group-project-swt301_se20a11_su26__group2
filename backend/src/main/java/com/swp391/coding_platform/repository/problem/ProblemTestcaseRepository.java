@@ -8,7 +8,7 @@ import java.util.List;
 
 @Repository
 public interface ProblemTestcaseRepository extends JpaRepository<ProblemTestcaseEntity, Integer> {
-    List<ProblemTestcaseEntity> findByProblemIdOrderByOrderIndexAsc(Integer problemId);
-    List<ProblemTestcaseEntity> findByProblemIdOrderByOrderIndex(Integer problemId);
-    void deleteByProblemId(Integer problemId);
+    List<ProblemTestcaseEntity> findByProblemVersionIdOrderByOrderIndexAsc(Integer problemVersionId);
+    List<ProblemTestcaseEntity> findByProblemVersionIdOrderByOrderIndex(Integer problemVersionId);
+    void deleteByProblemVersionId(Integer problemVersionId);
 }

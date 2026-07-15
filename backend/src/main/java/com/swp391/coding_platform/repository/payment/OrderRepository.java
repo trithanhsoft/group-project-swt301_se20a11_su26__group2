@@ -16,8 +16,9 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<OrderEntity, Integer> {
     List<OrderEntity> findAllByStatusAndCreatedAtAfter(OrderStatus status, Instant after);
     Page<OrderEntity> findByUserIdAndStatusOrderByCreatedAtDesc(Integer userId, OrderStatus status, Pageable pageable);
-
     List<OrderEntity> findAllByStatus(OrderStatus status);
+
+    Page<OrderEntity> findByStatusAndCreatedAtBetweenOrderByCreatedAtDesc(OrderStatus status, Instant start, Instant end, Pageable pageable);
 
     @Query("SELECT DISTINCT o FROM OrderEntity o " +
            "LEFT JOIN FETCH o.user u " +
@@ -25,4 +26,6 @@ public interface OrderRepository extends JpaRepository<OrderEntity, Integer> {
            "LEFT JOIN FETCH oi.course c " +
            "WHERE o.status = :status")
     List<OrderEntity> findAllByStatusWithDetails(@Param("status") OrderStatus status);
+
+    Page<OrderEntity> findByStatusOrderByCreatedAtDesc(OrderStatus status, Pageable pageable);
 }

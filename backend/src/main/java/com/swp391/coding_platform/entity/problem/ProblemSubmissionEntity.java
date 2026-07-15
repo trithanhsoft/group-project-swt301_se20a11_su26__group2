@@ -30,6 +30,10 @@ public class ProblemSubmissionEntity {
     ProblemEntity problem;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "problem_version_id", nullable = false)
+    ProblemVersionEntity problemVersion;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     UserEntity user;
 

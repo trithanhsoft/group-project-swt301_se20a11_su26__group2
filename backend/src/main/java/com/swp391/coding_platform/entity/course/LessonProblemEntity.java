@@ -1,6 +1,7 @@
 package com.swp391.coding_platform.entity.course;
 
 import com.swp391.coding_platform.entity.problem.ProblemEntity;
+import com.swp391.coding_platform.entity.problem.ProblemVersionEntity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -26,6 +27,10 @@ public class LessonProblemEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "problem_id", nullable = false)
     ProblemEntity problem;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "problem_version_id", nullable = false)
+    ProblemVersionEntity problemVersion;
 
     @Builder.Default
     @Column(name = "order_index", nullable = false)

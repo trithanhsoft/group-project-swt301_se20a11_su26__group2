@@ -12,6 +12,7 @@ interface SubmissionDetail {
 interface Team {
   rank: number;
   name: string;
+  displayName?: string;
   affiliation: string;
   solved: number;
   totalAttempts: number;
@@ -288,7 +289,7 @@ export const ContestRanking: React.FC = () => {
           </div>
           <h3 className="font-display font-black text-xl text-brand-blue">Arena Locked</h3>
           <p className="font-body text-sm text-text-muted">
-            You must register for this contest first to view the rankings. Use the registration panel on the right sidebar.
+            You must register for this contest first to view the rankings. Use the registration panel on the sidebar.
           </p>
         </div>
       </main>
@@ -300,12 +301,12 @@ export const ContestRanking: React.FC = () => {
 
   return (
     <>
-      <main className="w-full pl-4 sm:pl-8 py-8 md:py-12 pr-0 bg-surface-gray flex-grow min-w-0">
+      <main className="w-full pl-4 sm:pl-8 py-8 md:py-12 pr-4 sm:pr-8 bg-surface-gray flex-grow min-w-0">
         <div className="w-full flex flex-col gap-4">
           
           <div className="flex flex-col md:flex-row w-full gap-0 items-stretch">
             {/* Top Section: Interactive Custom SVG Chart & Legends */}
-            <div className="flex-grow min-w-0 pr-4 sm:pr-8">
+            <div className="flex-grow min-w-0">
               <section className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 flex flex-col gap-4 relative overflow-hidden group">
             <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
             
@@ -555,21 +556,10 @@ export const ContestRanking: React.FC = () => {
             )}
           </section>
         </div>
-
-        {/* Shorter Contest Sidebar on the right of the chart */}
-        <ContestSidebar
-          contestId={String(contest?.id || '')}
-          activeTab="ranking"
-          timeLeft={timeLeft}
-          timerLabel={timerLabel}
-          isRegistered={!!contest?.isUserRegistered}
-          contestStatus={contest?.status}
-          className="w-full md:w-[15%] min-w-[280px] bg-white border-l border-gray-200 flex flex-col relative sticky top-16 h-fit z-20 shrink-0"
-        />
       </div>
 
       {/* Bottom Section: Detailed Scoreboard */}
-      <div className="w-full pr-4 sm:pr-8">
+      <div className="w-full mt-4">
         <section className="bg-white rounded-xl shadow-[0_4px_20px_rgba(18,40,76,0.05)] border border-gray-200 overflow-hidden flex flex-col w-full">
             <div className="p-4 border-b border-gray-200 bg-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div>
@@ -593,25 +583,25 @@ export const ContestRanking: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="overflow-x-auto w-full">
+            <div className="w-full overflow-hidden">
               {problems.length === 0 ? (
                 <div className="p-8 text-center text-text-muted">No problems assigned to this contest.</div>
               ) : (
-                <table className="w-max text-left border-collapse min-w-[1200px] w-full">
+                <table className="w-full table-fixed text-left border-collapse">
                   <thead>
-                    <tr className="bg-surface-gray text-text-main font-label text-xs border-b-2 border-gray-200 uppercase tracking-wider text-center">
-                      <th className="p-4 font-bold w-12 text-center sticky left-0 bg-surface-gray z-25 shadow-[1px_0_0_#e2e8f0]">#</th>
-                      <th className="p-4 font-bold sticky left-[48px] bg-surface-gray z-25 min-w-[250px] w-[250px] max-w-[250px] text-left shadow-[1px_0_0_#e2e8f0]">User</th>
-                      <th className="p-2 font-bold w-20 whitespace-nowrap">AC / Total</th>
-                      <th className="p-2 font-bold w-28 border-r border-gray-200">Pen</th>
+                    <tr className="bg-surface-gray text-text-main font-label text-[10px] sm:text-xs border-b-2 border-gray-200 uppercase tracking-wider text-center">
+                      <th className="p-1 sm:p-2 font-bold w-8 sm:w-12 text-center border-r border-gray-200">#</th>
+                      <th className="p-1 sm:p-2 font-bold w-1/4 text-left border-r border-gray-200 truncate">User</th>
+                      <th className="p-1 sm:p-2 font-bold w-12 sm:w-16 whitespace-nowrap border-r border-gray-200 text-[9px] sm:text-[11px]">AC/T</th>
+                      <th className="p-1 sm:p-2 font-bold w-10 sm:w-14 border-r border-gray-200 text-[9px] sm:text-[11px]">Pen</th>
                       {problems.map((p) => (
-                        <th key={p.problemId} className="p-3 font-semibold w-[80px]" title={p.title}>
+                        <th key={p.problemId} className="p-1 sm:p-2 font-semibold border-r border-gray-200 truncate" title={p.title}>
                           {String.fromCharCode(65 + p.orderIndex)}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="text-sm font-body text-text-main divide-y divide-gray-200">
+                  <tbody className="text-[10px] sm:text-sm font-body text-text-main divide-y divide-gray-200">
                     {teams.length === 0 ? (
                       <tr>
                         <td colSpan={4 + problems.length} className="p-8 text-center text-text-muted">
@@ -621,19 +611,19 @@ export const ContestRanking: React.FC = () => {
                     ) : (
                       teams.map((team) => (
                         <tr key={team.name} className="hover:bg-surface-gray transition-colors group">
-                          <td className="p-4 text-center font-black text-primary sticky left-0 bg-white group-hover:bg-surface-gray z-10 shadow-[1px_0_0_#e2e8f0]">
+                          <td className="p-1 sm:p-2 text-center font-black text-primary border-r border-gray-200">
                             {team.rank}
                           </td>
-                          <td className="p-4 sticky left-[48px] bg-white group-hover:bg-surface-gray z-10 shadow-[1px_0_0_#e2e8f0]">
-                            <div className="flex flex-col">
-                              <span className="font-semibold text-text-main">@{team.name}</span>
-                              <span className="text-xs text-text-muted">{team.affiliation}</span>
+                          <td className="p-1 sm:p-2 border-r border-gray-200 truncate">
+                            <div className="flex flex-col truncate">
+                              <span className="font-semibold text-text-main truncate">{team.displayName || team.name}</span>
+                              <span className="text-[9px] sm:text-xs text-text-muted truncate">{team.affiliation}</span>
                             </div>
                           </td>
-                          <td className="p-4 text-center font-bold whitespace-nowrap">
+                          <td className="p-1 sm:p-2 text-center font-bold whitespace-nowrap border-r border-gray-200 text-[10px] sm:text-xs">
                             {team.solved} / {team.totalAttempts}
                           </td>
-                          <td className="p-4 text-center text-text-muted font-mono border-r border-gray-200">
+                          <td className="p-1 sm:p-2 text-center text-text-muted font-mono border-r border-gray-200 text-[10px] sm:text-xs">
                              {team.totalPenalty}
                            </td>
                           {problems.map((p) => {

@@ -6,6 +6,7 @@ interface Submission {
   id: number;
   submittedAt: string;
   username: string;
+  displayName?: string;
   problemLabel: string;
   problemId: number;
   problemTitle: string;
@@ -120,7 +121,7 @@ export const ContestSubmissions: React.FC = () => {
                   submissions.map((sub) => (
                     <tr key={sub.id} className="hover:bg-surface-gray/50 transition-colors">
                       <td className="px-6 py-4 text-text-muted text-sm whitespace-nowrap">{sub.submittedAt}</td>
-                      <td className="px-6 py-4 font-medium text-text-main">@{sub.username}</td>
+                      <td className="px-6 py-4 font-medium text-text-main">{sub.displayName || sub.username}</td>
                       <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-gray text-text-main font-semibold">
                           {sub.problemLabel}
